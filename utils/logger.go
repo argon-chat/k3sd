@@ -1,33 +1,42 @@
+// Package utils provides a Logger type and related utilities for logging cluster operations.
 package utils
 
 import (
 	"fmt"
 	"log"
+	"time"
 )
 
-// Logger represents a logging utility with unique channels for different log types
-// and an identifier for the logger instance.
 type Logger struct {
-	Stdout chan string       // Channel for standard log messages.
-	Stderr chan string       // Channel for error log messages.
-	File   chan FileWithInfo // Channel for file log messages.
-	Cmd    chan string       // Channel for command log messages.
-	Id     string            // Identifier for the logger instance.
+	// Stdout is the channel for standard output log messages.
+	Stdout chan string
+	// Stderr is the channel for error log messages.
+	Stderr chan string
+	// File is the channel for file log messages.
+	File chan FileWithInfo
+	// Cmd is the channel for command log messages.
+	Cmd chan string
+	// Id is the logger/session ID, used to distinguish log streams.
+	Id string
 }
 
-// FileWithInfo represents a file log message with its file name and content.
 type FileWithInfo struct {
-	FileName string // Name of the file being logged.
-	Content  string // Content of the file being logged.
+	// FileName is the name of the file being logged.
+	FileName string
+	// Content is the content of the file being logged.
+	Content string
 }
 
-// NewLogger initializes a new Logger instance with unique channels and an identifier.
+// NewLogger creates and returns a new Logger instance with the given ID.
+// The logger provides separate channels for stdout, stderr, file, and command logs.
 //
 // Parameters:
-//   - id: A string representing the identifier for the logger instance.
+//
+//	id: a string identifier for the logger/session (useful for grouping logs).
 //
 // Returns:
-//   - A pointer to the newly created Logger instance.
+//
+//	*Logger: a pointer to the new Logger instance.
 func NewLogger(id string) *Logger {
 	return &Logger{
 		Stdout: make(chan string, 100),
@@ -38,66 +47,71 @@ func NewLogger(id string) *Logger {
 	}
 }
 
-// Log formats a log message and sends it to the Stdout channel.
+// Log sends a formatted message to the logger's Stdout channel.
 //
 // Parameters:
-//   - format: A string containing the format of the log message (similar to fmt.Sprintf).
-//   - args: A variadic list of arguments to be formatted into the log message.
+//
+//	format: a format string (as in fmt.Sprintf)
+//	args: arguments for the format string
 func (l *Logger) Log(format string, args ...interface{}) {
 	l.Stdout <- fmt.Sprintf(format, args...)
 }
 
-// LogErr formats an error log message and sends it to the Stderr channel.
+// LogErr sends a formatted error message to the logger's Stderr channel.
 //
 // Parameters:
-//   - format: A string containing the format of the error log message (similar to fmt.Sprintf).
-//   - args: A variadic list of arguments to be formatted into the error log message.
+//
+//	format: a format string (as in fmt.Sprintf)
+//	args: arguments for the format string
 func (l *Logger) LogErr(format string, args ...interface{}) {
 	l.Stderr <- fmt.Sprintf(format, args...)
 }
 
-// LogFile formats a log message and sends it to the File channel.
+// LogFile sends a file's content to the logger's File channel.
 //
 // Parameters:
-//   - filePath: A string representing the path of the file being logged.
-//   - content: A string containing the content of the file being logged.
+//
+//	filePath: the name of the file being logged
+//	content: the content of the file
 func (l *Logger) LogFile(filePath, content string) {
 	l.File <- FileWithInfo{FileName: filePath, Content: content}
 }
 
-// LogCmd formats a command log message and sends it to the Cmd channel.
+// LogCmd sends a formatted command string to the logger's Cmd channel.
 //
 // Parameters:
-//   - format: A string containing the format of the command log message (similar to fmt.Sprintf).
-//   - args: A variadic list of arguments to be formatted into the command log message.
+//
+//	format: a format string (as in fmt.Sprintf)
+//	args: arguments for the format string
 func (l *Logger) LogCmd(format string, args ...interface{}) {
 	l.Cmd <- fmt.Sprintf(format, args...)
 }
 
-// LogWorker continuously processes log messages from the Stdout channel
-// and writes them to the standard logger.
-//
-// This function should be run as a goroutine to handle log messages asynchronously.
+// LogWorker processes and prints all messages from the Stdout channel.
+// If Verbose is false, it simply drains the channel with a delay (for background logging).
+// Otherwise, it prints each message to the standard logger with a [stdout] prefix.
 func (l *Logger) LogWorker() {
+	if !Verbose {
+		for range l.Stdout {
+			time.Sleep(100 * time.Millisecond)
+		}
+		return
+	}
 	for logMessage := range l.Stdout {
-		log.Println(fmt.Sprintf("[stdout] %s", logMessage))
+		log.Printf("[stdout] %s", logMessage)
 	}
 }
 
-// LogWorkerErr continuously processes error log messages from the Stderr channel
-// and writes them to the standard logger with an error prefix.
-//
-// This function should be run as a goroutine to handle error log messages asynchronously.
+// LogWorkerErr processes and prints all messages from the Stderr channel.
+// Each message is printed to the standard logger with a [stderr] prefix.
 func (l *Logger) LogWorkerErr() {
 	for logMessage := range l.Stderr {
-		log.Println(fmt.Sprintf("[stderr] %s", logMessage))
+		log.Printf("[stderr] %s", logMessage)
 	}
 }
 
-// LogWorkerFile continuously processes log messages from the File channel
-// and writes them to the standard logger with a file prefix.
-//
-// This function should be run as a goroutine to handle file log messages asynchronously.
+// LogWorkerFile processes and prints all file log messages from the File channel.
+// Each file's content is printed with delimiters and the file name for clarity.
 func (l *Logger) LogWorkerFile() {
 	delimiter := "----------------------------------------"
 	for logMessage := range l.File {
@@ -109,12 +123,10 @@ func (l *Logger) LogWorkerFile() {
 	}
 }
 
-// LogWorkerCmd continuously processes command log messages from the Cmd channel
-// and writes them to the standard logger with a command prefix.
-//
-// This function should be run as a goroutine to handle command log messages asynchronously.
+// LogWorkerCmd processes and prints all command log messages from the Cmd channel.
+// Each message is printed to the standard logger with a [CMD] prefix.
 func (l *Logger) LogWorkerCmd() {
 	for logMessage := range l.Cmd {
-		log.Println(fmt.Sprintf("[CMD] %s", logMessage))
+		log.Printf("[CMD] %s", logMessage)
 	}
 }

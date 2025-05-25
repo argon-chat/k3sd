@@ -1,52 +1,65 @@
+// Package cluster contains types and logic for representing and managing Kubernetes clusters and their nodes.
 package cluster
 
-// Cluster represents a cluster configuration, including its domain and associated workers.
-//
-// Fields:
-//   - Domain: The domain name associated with the cluster.
-//   - Gitea: A Gitea configuration object containing PostgreSQL credentials.
-//   - Workers: A slice of Worker objects representing the workers in the cluster.
+import "fmt"
+
 type Cluster struct {
-	Worker           // Embeds the Worker struct, inheriting its fields and methods.
-	Domain  string   `json:"domain"`  // The domain name associated with the cluster.
-	Gitea   Gitea    `json:"gitea"`   // Gitea configuration for the cluster.
-	Workers []Worker `json:"workers"` // List of worker nodes in the cluster.
+	// Worker embeds the master node's information.
+	Worker
+	// Domain is the domain name for the cluster.
+	Domain string `json:"domain"`
+	// Gitea contains Gitea configuration for the cluster.
+	Gitea Gitea `json:"gitea"`
+	// PrivateNet indicates if the cluster uses a private network.
+	PrivateNet bool `json:"privateNet"`
+	// Workers is the list of worker nodes in the cluster.
+	Workers []Worker `json:"workers"`
 }
 
-// Worker represents a worker node in the cluster.
-//
-// Fields:
-//   - Address: The IP address or hostname of the worker node.
-//   - User: The username used to connect to the worker node.
-//   - Password: The password used to authenticate the connection to the worker node.
-//   - NodeName: The name of the node in the cluster.
-//   - Labels: The labels assigned to the node for identification or grouping.
-//   - Done: A boolean indicating whether the worker setup is complete.
+// Worker represents a node (master or worker) in the cluster.
 type Worker struct {
-	Address  string `json:"address"`  // IP address or hostname of the worker node.
-	User     string `json:"user"`     // Username for connecting to the worker node.
-	Password string `json:"password"` // Password for authenticating the connection.
-	NodeName string `json:"nodeName"` // Name of the node in the cluster.
-	Labels   string `json:"labels"`   // Labels for identification or grouping.
-	Done     bool   `json:"done"`     // Indicates if the worker setup is complete.
+	// Address is the IP address or hostname of the node.
+	Address string `json:"address"`
+	// User is the SSH username.
+	User string `json:"user"`
+	// Password is the SSH password.
+	Password string `json:"password"`
+	// NodeName is the Kubernetes node name.
+	NodeName string `json:"nodeName"`
+	// Labels are the node labels.
+	Labels map[string]string `json:"labels"`
+	// Done indicates whether setup is complete.
+	Done bool `json:"done"`
 }
 
-// Gitea represents the Gitea configuration for the cluster.
-//
-// Fields:
-//   - Pg: PostgreSQL configuration for Gitea.
+// Gitea holds Gitea configuration for the cluster.
 type Gitea struct {
-	Pg Pg `json:"pg"` // PostgreSQL configuration for Gitea.
+	// Pg contains Postgres configuration for Gitea.
+	Pg Pg `json:"pg"`
 }
 
-// Pg represents the PostgreSQL configuration.
-//
-// Fields:
-//   - Username: The username for the PostgreSQL database.
-//   - Password: The password for the PostgreSQL database.
-//   - DbName: The name of the PostgreSQL database.
+// Pg holds Postgres configuration for Gitea.
 type Pg struct {
-	Username string `json:"user"`     // Username for the PostgreSQL database.
-	Password string `json:"password"` // Password for the PostgreSQL database.
-	DbName   string `json:"db"`       // Name of the PostgreSQL database.
+	// Username is the database username.
+	Username string `json:"user"`
+	// Password is the database password.
+	Password string `json:"password"`
+	// DbName is the database name.
+	DbName string `json:"db"`
+}
+
+// GetLabels returns a comma-separated string of the node's labels in the form key=value.
+// Example: "role=worker,zone=us-east"
+//
+// Returns:
+//   string: Comma-separated key=value pairs for all labels on the node.
+func (worker *Worker) GetLabels() string {
+	labels := ""
+	for k, v := range worker.Labels {
+		labels += fmt.Sprintf("%s=%s,", k, v)
+	}
+	if len(labels) > 0 {
+		labels = labels[:len(labels)-1]
+	}
+	return labels
 }

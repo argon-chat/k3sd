@@ -1,3 +1,4 @@
+// Package cluster provides functions for loading and saving cluster configuration from JSON files.
 package cluster
 
 import (
@@ -6,14 +7,16 @@ import (
 	"os"
 )
 
-// LoadClusters reads a JSON file from the specified path and decodes it into a slice of Cluster objects.
+// LoadClusters loads cluster configuration from a JSON file.
 //
 // Parameters:
-//   - path: A string representing the file path to the JSON file.
+//
+//	path: Path to the JSON file.
 //
 // Returns:
-//   - []Cluster: A slice of Cluster objects decoded from the JSON file.
-//   - Error: An error if the file cannot be opened or the JSON cannot be decoded.
+//
+//	[]Cluster: List of clusters.
+//	error: Error if loading or parsing fails.
 func LoadClusters(path string) ([]Cluster, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -29,14 +32,16 @@ func LoadClusters(path string) ([]Cluster, error) {
 	return clusters, nil
 }
 
-// SaveClusters encodes a slice of Cluster objects into JSON format and writes it to the specified file path.
+// SaveClusters saves cluster configuration to a JSON file.
 //
 // Parameters:
-//   - path: A string representing the file path where the JSON data will be written.
-//   - clusters: A slice of Cluster objects to be encoded into JSON.
+//
+//	path: Path to the JSON file.
+//	clusters: List of clusters to save.
 //
 // Returns:
-//   - error: An error if the JSON cannot be marshaled or the file cannot be written.
+//
+//	error: Error if writing fails.
 func SaveClusters(path string, clusters []Cluster) error {
 	data, err := json.MarshalIndent(clusters, "", "  ")
 	if err != nil {

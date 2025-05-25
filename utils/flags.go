@@ -1,3 +1,4 @@
+// Package utils provides utility functions and global variables for flag parsing and configuration.
 package utils
 
 import (
@@ -5,39 +6,76 @@ import (
 	"fmt"
 )
 
+// Flags contains parsed boolean flags for feature toggles.
 var (
-	Flags       map[string]bool
-	ConfigPath  string
-	Uninstall   bool
+	Flags map[string]bool
+	// ConfigPath is the path to the cluster config file.
+	ConfigPath string
+	// Uninstall indicates whether to uninstall the cluster.
+	Uninstall bool
+	// VersionFlag indicates whether to print version and exit.
 	VersionFlag bool
+	// Verbose enables verbose logging.
+	Verbose bool
+	// HelmAtomic enables atomic Helm operations.
+	HelmAtomic bool
+	// YamlsPath is the prefix path to all YAMLs used for installing additional components.
+	// If not set, the program will look for a ./yamls directory or ~/.k3sd/yamls.
+	YamlsPath string
 )
 
+// boolFlagDef defines a boolean flag for command-line parsing.
+type boolFlagDef struct {
+	Name        string // The flag name (e.g. "cert-manager")
+	Default     bool   // The default value
+	Description string // Help text for the flag
+	MapKey      string // Key used in the Flags map
+}
+
+// ParseFlags parses command-line flags and populates global variables for configuration and feature toggles.
+//
+// Sets:
+//   - Flags: map of feature flags
+//   - ConfigPath: path to cluster config file
+//   - Uninstall: uninstall mode
+//   - VersionFlag: print version and exit
+//   - Verbose: enable verbose logging
+//   - HelmAtomic: enable atomic Helm operations
 func ParseFlags() {
-	certManager := flag.Bool("cert-manager", false, "Apply the cert-manager YAMLs")
-	traefik := flag.Bool("traefik", false, "Apply the Traefik YAML")
-	clusterIssuer := flag.Bool("cluster-issuer", false, "Apply the Cluster Issuer YAML, need to specify `domain` in your config json")
-	gitea := flag.Bool("gitea", false, "Apply the Gitea YAML")
-	giteaIngress := flag.Bool("gitea-ingress", false, "Apply the Gitea Ingress YAML, need to specify `domain` in your config json")
+	boolFlags := []boolFlagDef{
+		{"cert-manager", false, "Apply the cert-manager YAMLs", "cert-manager"},
+		{"traefik", false, "Apply the Traefik YAML", "traefik-values"},
+		{"cluster-issuer", false, "Apply the Cluster Issuer YAML, need to specify `domain` in your config json", "clusterissuer"},
+		{"gitea", false, "Apply the Gitea YAML", "gitea"},
+		{"gitea-ingress", false, "Apply the Gitea Ingress YAML, need to specify `domain` in your config json", "gitea-ingress"},
+		{"prometheus", false, "Apply the Prometheus YAML", "prometheus"},
+		{"linkerd", false, "Install linkerd", "linkerd"},
+		{"linkerd-mc", false, "Install linkerd multicluster(will install linkerd first)", "linkerd-mc"},
+	}
+
+	flagPtrs := make(map[string]*bool)
+	for _, def := range boolFlags {
+		flagPtrs[def.MapKey] = flag.Bool(def.Name, def.Default, def.Description)
+	}
+
 	configPath := flag.String("config-path", "", "Path to clusters.json")
-	prometheus := flag.Bool("prometheus", false, "Apply the Prometheus YAML")
+	yamlsPath := flag.String("yamls-path", "", "Prefix path to all YAMLs for installing additional components. If not set, defaults to ./yamls or ~/.k3sd/yamls.")
 	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the cluster")
-	linkerd := flag.Bool("linkerd", false, "Install linkerd")
-	linkerdMc := flag.Bool("linkerd-mc", false, "Install linkerd multicluster(will install linkerd first)")
 	versionFlag := flag.Bool("version", false, "Print the version and exit")
+	verbose := flag.Bool("v", false, "Enable verbose stdout logging")
+	helmAtomic := flag.Bool("helm-atomic", false, "Enable --atomic for all Helm operations (rollback on failure)")
 
 	flag.Parse()
 
 	VersionFlag = *versionFlag
 	Uninstall = *uninstallFlag
-	Flags = map[string]bool{
-		"cert-manager":   *certManager,
-		"traefik-values": *traefik,
-		"clusterissuer":  *clusterIssuer,
-		"gitea":          *gitea,
-		"prometheus":     *prometheus,
-		"gitea-ingress":  *giteaIngress,
-		"linkerd":        *linkerd,
-		"linkerd-mc":     *linkerdMc,
+	Verbose = *verbose
+	HelmAtomic = *helmAtomic
+	YamlsPath = *yamlsPath
+
+	Flags = make(map[string]bool)
+	for k, ptr := range flagPtrs {
+		Flags[k] = *ptr
 	}
 
 	if *configPath != "" {
