@@ -158,15 +158,17 @@ jobs:
           asset_name: yamls.tar.gz
           asset_content_type: application/gzip
 
+
       - name: Upload Linux AMD64 Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./k3sd-linux-amd64/k3sd-linux-amd64.tar.gz
+          asset_path: ./k3sd-linux-amd64.tar.gz
           asset_name: k3sd-linux-amd64.tar.gz
           asset_content_type: application/gzip
+
 
       - name: Upload Linux ARM64 Release Asset
         uses: actions/upload-release-asset@v1
@@ -174,9 +176,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./k3sd-linux-arm64/k3sd-linux-arm64.tar.gz
+          asset_path: ./k3sd-linux-arm64.tar.gz
           asset_name: k3sd-linux-arm64.tar.gz
           asset_content_type: application/gzip
+
 
       - name: Upload Darwin ARM64 Release Asset
         uses: actions/upload-release-asset@v1
@@ -184,9 +187,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./k3sd-darwin-arm64/k3sd-darwin-arm64.tar.gz
+          asset_path: ./k3sd-darwin-arm64.tar.gz
           asset_name: k3sd-darwin-arm64.tar.gz
           asset_content_type: application/gzip
+
 
       - name: Upload Windows AMD64 Release Asset
         uses: actions/upload-release-asset@v1
@@ -194,6 +198,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./k3sd-windows-amd64/k3sd-windows-amd64.tar.gz
+          asset_path: ./k3sd-windows-amd64.tar.gz
           asset_name: k3sd-windows-amd64.tar.gz
           asset_content_type: application/gzip
