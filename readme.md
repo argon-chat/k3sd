@@ -1,3 +1,29 @@
+## Project Roadmap & Future Milestones
+
+
+The following table lists planned and completed features/milestones for the project. Status is updated as work progresses.
+
+
+| Feature / Milestone                                      | Status |
+|----------------------------------------------------------|--------|
+| Deploy K3s clusters with multiple worker nodes via SSH    | ✅     |
+| Cross-platform support (Linux, macOS, Windows)           | ✅     |
+| Install cert-manager                                     | ✅     |
+| Install Traefik (with custom values, HTTP/3)             | ✅     |
+| Install Prometheus stack (via Helm)                      | ✅     |
+| Install Gitea (with PostgreSQL and ingress)              | ✅     |
+| Install Linkerd (including multi-cluster, auto certs)    | ✅     |
+| Generate/manage kubeconfig files for each node           | ✅     |
+| Clean uninstall of clusters                              | ✅     |
+| Display version information                              | ✅     |
+| Verbose logging and atomic Helm operations               | ✅     |
+| Support for choosing CNI of choice                       | 🚧     |
+| Addon configuration with JSON instead of CLI flags       | 🚧     |
+| Add support for more service meshes (e.g., Istio)        | 🚧     |
+| Remember/apply config JSON diffs for future changes      | 🚧     |
+
+*Legend: 🚧 = in progress or planned, ✅ = implemented*
+
 # K3SD - K3s Cluster Deployment Tool
 
 K3SD is a command-line tool for creating, managing, and uninstalling K3s Kubernetes clusters across multiple machines.
