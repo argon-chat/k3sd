@@ -1,3 +1,4 @@
+// Package cluster provides functions for installing and upgrading Helm charts on Kubernetes clusters.
 package cluster
 
 import (
@@ -15,6 +16,23 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
+// installHelmChartNative installs or upgrades a Helm chart using the Helm Go SDK.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	releaseName: Helm release name.
+//	namespace: Kubernetes namespace.
+//	repoName: Helm repository name.
+//	repoURL: Helm repository URL.
+//	chartName: Chart name.
+//	chartVersion: Chart version.
+//	valuesFile: Path to values file.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if installation or upgrade fails.
 func installHelmChartNative(kubeconfigPath, releaseName, namespace, repoName, repoURL, chartName, chartVersion, valuesFile string, logger *utils.Logger) error {
 	settings := cli.New()
 	settings.KubeConfig = kubeconfigPath
@@ -152,6 +170,13 @@ func installHelmChartNative(kubeconfigPath, releaseName, namespace, repoName, re
 	}
 }
 
+// installHelmChart is a wrapper for installHelmChartNative.
+//
+// Parameters are the same as installHelmChartNative.
+//
+// Returns:
+//
+//	error: Error if installation or upgrade fails.
 func installHelmChart(kubeconfigPath, releaseName, namespace, repoName, repoURL, chartName, chartVersion, valuesFile string, logger *utils.Logger) error {
 	return installHelmChartNative(kubeconfigPath, releaseName, namespace, repoName, repoURL, chartName, chartVersion, valuesFile, logger)
 }
