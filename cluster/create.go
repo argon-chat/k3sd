@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
@@ -324,7 +325,7 @@ func applyCertManager(kubeconfigPath string, logger *utils.Logger) {
 //	kubeconfigPath: Path to kubeconfig.
 //	logger: Logger for output.
 func applyTraefikValues(kubeconfigPath string, logger *utils.Logger) {
-	applyComponentYAML("traefik-values", kubeconfigPath, "yamls/traefik-values.yaml", logger, nil)
+	applyComponentYAML("traefik-values", kubeconfigPath, resolveYamlPath("traefik-values.yaml"), logger, nil)
 }
 
 // applyClusterIssuer applies the ClusterIssuer YAML to the cluster, with domain substitutions.
@@ -336,7 +337,7 @@ func applyTraefikValues(kubeconfigPath string, logger *utils.Logger) {
 //	logger: Logger for output.
 func applyClusterIssuer(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	substitutions := buildSubstitutions("${DOMAIN}", cluster.Domain, "DOMAIN", cluster.Domain)
-	applyComponentYAML("clusterissuer", kubeconfigPath, "yamls/clusterissuer.yaml", logger, substitutions)
+	applyComponentYAML("clusterissuer", kubeconfigPath, resolveYamlPath("clusterissuer.yaml"), logger, substitutions)
 }
 
 // applyGitea applies the Gitea YAML to the cluster, with Postgres substitutions.
@@ -352,7 +353,7 @@ func applyGitea(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 		"${POSTGRES_PASSWORD}", cluster.Gitea.Pg.Password,
 		"${POSTGRES_DB}", cluster.Gitea.Pg.DbName,
 	)
-	applyComponentYAML("gitea", kubeconfigPath, "yamls/gitea.yaml", logger, substitutions)
+	applyComponentYAML("gitea", kubeconfigPath, resolveYamlPath("gitea.yaml"), logger, substitutions)
 	if utils.Flags["gitea-ingress"] {
 		applyGiteaIngress(cluster, kubeconfigPath, logger)
 	}
@@ -367,7 +368,7 @@ func applyGitea(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 //	logger: Logger for output.
 func applyGiteaIngress(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	substitutions := buildSubstitutions("${DOMAIN}", cluster.Domain, "DOMAIN", cluster.Domain)
-	applyComponentYAML("gitea-ingress", kubeconfigPath, "yamls/gitea.ingress.yaml", logger, substitutions)
+	applyComponentYAML("gitea-ingress", kubeconfigPath, resolveYamlPath("gitea.ingress.yaml"), logger, substitutions)
 }
 
 // applyPrometheus installs the Prometheus stack via Helm in the monitoring namespace.
@@ -387,9 +388,29 @@ func applyPrometheus(kubeconfigPath string, logger *utils.Logger) {
 		"https://prometheus-community.github.io/helm-charts",
 		"kube-prometheus-stack",
 		"35.5.1",
-		"yamls/prom-stack-values.yaml",
+		resolveYamlPath("prom-stack-values.yaml"),
 		logger,
 	)
+}
+
+// resolveYamlPath returns the full path to a YAML file for installing additional components.
+// If --yamls-path is set, it is used as the prefix. Otherwise, it checks ./yamls then ~/.k3sd/yamls.
+func resolveYamlPath(filename string) string {
+	if utils.YamlsPath != "" {
+		return path.Join(utils.YamlsPath, filename)
+	}
+	if _, err := os.Stat("yamls/" + filename); err == nil {
+		return "yamls/" + filename
+	}
+	home, err := os.UserHomeDir()
+	if err == nil {
+		candidate := path.Join(home, ".k3sd", "yamls", filename)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	// fallback to just the filename (may be absolute or relative)
+	return filename
 }
 
 // setupWorkerNodes sets up all worker nodes for a cluster.
