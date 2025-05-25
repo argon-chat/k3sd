@@ -1,3 +1,4 @@
+// Package cluster provides utilities for applying Kubernetes manifests to clusters, including YAML parsing and substitutions.
 package cluster
 
 import (
@@ -19,6 +20,16 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// getManifestData fetches manifest data from a file or URL.
+//
+// Parameters:
+//
+//	manifestPathOrURL: Path or URL to manifest.
+//
+// Returns:
+//
+//	[]byte: Manifest data.
+//	error: Error if fetching fails.
 func getManifestData(manifestPathOrURL string) ([]byte, error) {
 	if strings.HasPrefix(manifestPathOrURL, "http://") || strings.HasPrefix(manifestPathOrURL, "https://") {
 		resp, err := http.Get(manifestPathOrURL)
@@ -31,6 +42,16 @@ func getManifestData(manifestPathOrURL string) ([]byte, error) {
 	return os.ReadFile(manifestPathOrURL)
 }
 
+// applySubstitutions applies string substitutions to manifest data.
+//
+// Parameters:
+//
+//	data: Manifest data.
+//	substitutions: Substitutions to apply.
+//
+// Returns:
+//
+//	[]byte: Modified data.
 func applySubstitutions(data []byte, substitutions map[string]string) []byte {
 	if substitutions == nil {
 		return data
@@ -42,6 +63,15 @@ func applySubstitutions(data []byte, substitutions map[string]string) []byte {
 	return []byte(content)
 }
 
+// splitYAMLDocs splits YAML data into individual documents.
+//
+// Parameters:
+//
+//	data: YAML data.
+//
+// Returns:
+//
+//	[]string: List of YAML documents.
 func splitYAMLDocs(data []byte) []string {
 	var docs []string
 	rawDocs := strings.Split(string(data), "\n---")
@@ -54,6 +84,19 @@ func splitYAMLDocs(data []byte) []string {
 	}
 	return docs
 }
+
+// applyYAMLManifest applies a YAML manifest to a Kubernetes cluster.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	manifestPathOrURL: Path or URL to manifest.
+//	logger: Logger for output.
+//	substitutions: Substitutions to apply.
+//
+// Returns:
+//
+//	error: Error if applying fails.
 func applyYAMLManifest(kubeconfigPath, manifestPathOrURL string, logger *utils.Logger, substitutions map[string]string) error {
 	data, err := getManifestData(manifestPathOrURL)
 	if err != nil {
