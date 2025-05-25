@@ -1,3 +1,4 @@
+// Package cluster provides functions for installing and configuring Linkerd and its certificates on Kubernetes clusters.
 package cluster
 
 import (
@@ -8,10 +9,24 @@ import (
 	"github.com/argon-chat/k3sd/utils"
 )
 
+// runStepCertCreate runs the `step` CLI to create certificates for Linkerd.
+//
+// Parameters:
+//
+//	args: Arguments for the `step` command.
+//	logger: Logger for output.
 func runStepCertCreate(args []string, logger *utils.Logger) {
 	cmd := exec.Command("step", args...)
 	pipeAndLog(cmd, logger)
 }
+
+// runLinkerdInstall installs Linkerd (and optionally multicluster) on a cluster.
+//
+// Parameters:
+//
+//	cluster: Cluster information.
+//	logger: Logger for output.
+//	multicluster: Whether to install multicluster.
 func runLinkerdInstall(cluster Cluster, logger *utils.Logger, multicluster bool) {
 	dir := path.Join("./kubeconfigs", logger.Id)
 	kubeconfig := path.Join(dir, fmt.Sprintf("%s.yaml", cluster.NodeName))
@@ -39,6 +54,15 @@ func runLinkerdInstall(cluster Cluster, logger *utils.Logger, multicluster bool)
 	}
 }
 
+// runLinkerdCmd runs a Linkerd CLI command, optionally applying the output to the cluster.
+//
+// Parameters:
+//
+//	cmd: Linkerd subcommand.
+//	args: Arguments for the command.
+//	logger: Logger for output.
+//	kubeconfig: Path to kubeconfig.
+//	apply: Whether to apply the output.
 func runLinkerdCmd(cmd string, args []string, logger *utils.Logger, kubeconfig string, apply bool) {
 	parts := append([]string{cmd}, args...)
 	c := exec.Command("linkerd", parts...)
@@ -49,11 +73,23 @@ func runLinkerdCmd(cmd string, args []string, logger *utils.Logger, kubeconfig s
 	}
 }
 
+// installCRDs installs Linkerd CRDs on the cluster.
+//
+// Parameters:
+//
+//	kubeconfig: Path to kubeconfig.
+//	logger: Logger for output.
 func installCRDs(kubeconfig string, logger *utils.Logger) {
 	run := exec.Command("linkerd", "install", "--crds", "--kubeconfig", kubeconfig)
 	pipeAndApply(run, kubeconfig, logger)
 }
 
+// createRootCerts creates root CA certificates for Linkerd.
+//
+// Parameters:
+//
+//	dir: Directory to store certificates.
+//	logger: Logger for output.
 func createRootCerts(dir string, logger *utils.Logger) {
 	args := []string{
 		"certificate", "create",
@@ -66,6 +102,13 @@ func createRootCerts(dir string, logger *utils.Logger) {
 	runStepCertCreate(args, logger)
 }
 
+// createIssuerCerts creates issuer certificates for Linkerd for a specific cluster.
+//
+// Parameters:
+//
+//	dir: Directory to store certificates.
+//	cluster: Cluster information.
+//	logger: Logger for output.
 func createIssuerCerts(dir string, cluster Cluster, logger *utils.Logger) {
 	args := []string{
 		"certificate", "create",
