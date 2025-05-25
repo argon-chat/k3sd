@@ -6,7 +6,6 @@ toolchain go1.24.3
 
 require (
 	golang.org/x/crypto v0.38.0
-	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.18.0
 	k8s.io/apimachinery v0.33.1
 	k8s.io/client-go v0.33.1
