@@ -1,3 +1,4 @@
+// The main package for the k3sd CLI tool. Handles cluster creation, uninstallation, and logging.
 package main
 
 import (
@@ -12,6 +13,9 @@ import (
 	"github.com/argon-chat/k3sd/utils"
 )
 
+// main is the entry point for the k3sd CLI tool.
+// It parses command-line flags, loads cluster configuration, and either creates or uninstalls clusters.
+// It also sets up logging and saves the updated cluster state.
 func main() {
 	utils.ParseFlags()
 
@@ -31,9 +35,11 @@ func main() {
 	go logger.LogWorkerFile()
 	go logger.LogWorkerCmd()
 
+	// Uncomment to check for required commands before proceeding.
 	// checkCommandExists()
 
 	if utils.Uninstall {
+		// Prompt the user for confirmation before uninstalling clusters.
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Are you sure you want to uninstall the clusters? (yes/no): ")
 		response, _ := reader.ReadString('\n')
@@ -49,17 +55,21 @@ func main() {
 			return
 		}
 	} else {
+		// Create or update clusters as specified in the configuration.
 		clusters, err = cluster.CreateCluster(clusters, logger, []string{})
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
 		}
 	}
 
+	// Save the updated cluster state to the configuration file.
 	if err := cluster.SaveClusters(utils.ConfigPath, clusters); err != nil {
 		log.Fatalf("failed to save clusters: %v", err)
 	}
 }
 
+// checkCommandExists verifies that all required external commands are available in the system's PATH.
+// If any command is missing, the program will terminate with a fatal error.
 func checkCommandExists() {
 	commands := []string{
 		"linkerd",
