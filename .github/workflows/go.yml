@@ -118,6 +118,11 @@ jobs:
           path: |
             k3sd${{ matrix.extension }}
             k3sd-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+      - name: Archive yamls directory
+        run: |
+          if [ -d "yamls" ]; then
+            tar -czvf yamls.tar.gz yamls
+          fi
 
   release:
     runs-on: ubuntu-latest
@@ -138,6 +143,16 @@ jobs:
           body: |
             **Full Changelog**: https://github.com/argon-chat/k3sd/compare/${{ needs.determine-version.outputs.current_tag }}...${{ needs.determine-version.outputs.tag }}
           prerelease: false
+
+      - name: Upload yamls directory as Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./yamls.tar.gz
+          asset_name: yamls.tar.gz
+          asset_content_type: application/gzip
 
       - name: Upload Linux AMD64 Release Asset
         uses: actions/upload-release-asset@v1
