@@ -106,7 +106,7 @@ jobs:
 
       - name: Build for ${{ matrix.os }}_${{ matrix.arch }}
         run: |
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -v -ldflags="-s -w -X 'github.com/argon-chat/k3sd/utils.Version=${{ needs.determine-version.outputs.tag }}'" -o k3sd${{ matrix.extension }} ./cli/main.go
+          CGO_ENABLED=0 GOFLAGS="-mod=readonly -modcacherw" GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -v -ldflags="-s -w -X 'github.com/argon-chat/k3sd/utils.Version=${{ needs.determine-version.outputs.tag }}'" -o k3sd${{ matrix.extension }} ./cli/main.go
           file k3sd${{ matrix.extension }}
           chmod +x k3sd${{ matrix.extension }}
           tar -czvf k3sd-${{ matrix.os }}-${{ matrix.arch }}.tar.gz k3sd${{ matrix.extension }}
@@ -193,13 +193,3 @@ jobs:
           asset_path: ./k3sd-windows-amd64/k3sd-windows-amd64.tar.gz
           asset_name: k3sd-windows-amd64.tar.gz
           asset_content_type: application/gzip
-
-      - name: Upload Binary Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./k3sd-linux-amd64/k3sd
-          asset_name: k3sd-linux-amd64
-          asset_content_type: application/octet-stream
