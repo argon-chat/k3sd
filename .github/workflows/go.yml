@@ -116,13 +116,17 @@ jobs:
         with:
           name: k3sd-${{ matrix.os }}-${{ matrix.arch }}
           path: |
-            k3sd${{ matrix.extension }}
             k3sd-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
       - name: Archive yamls directory
         run: |
           if [ -d "yamls" ]; then
             tar -czvf yamls.tar.gz yamls
           fi
+      - name: Upload yamls directory artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yamls
+          path: yamls.tar.gz
 
   release:
     runs-on: ubuntu-latest
