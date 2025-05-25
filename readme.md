@@ -8,15 +8,16 @@ Linkerd.
 
 - Deploy K3s clusters with multiple worker nodes via SSH
 - Cross-platform support: Linux (x86_64/arm64), macOS (Apple Silicon), and Windows (x86_64)
-- Install and configure additional components:
-    - cert-manager
-    - Traefik (HTTP/3 enabled)
-    - Prometheus stack
-    - Gitea (with PostgreSQL support)
-    - Linkerd (including multi-cluster)
-- Generate and manage kubeconfig files
-- Uninstall clusters cleanly
+- Install and configure optional components:
+  - cert-manager
+  - Traefik (HTTP/3 enabled, with custom values)
+  - Prometheus stack (via Helm)
+  - Gitea (with PostgreSQL support and ingress)
+  - Linkerd (including multi-cluster, with automated certificate management)
+- Generate and manage kubeconfig files for each node
+- Clean uninstall of clusters
 - Display version information with `--version`
+- Verbose logging and atomic Helm operations supported
 
 ## Prerequisites
 
@@ -42,32 +43,41 @@ sudo mv k3sd /usr/local/bin/
 
 Create a JSON configuration file for your clusters. Example:
 
-```js
+```jsonc
 [
-    {
-        "address": "192.168.1.10",
-        "user": "root",
-        "password": "password",
-        "nodeName": "master-1",
-        "labels": "node-role.kubernetes.io/control-plane=true",
-        "domain": "example.com", // required for -cluster-issuer and -gitea-ingress
-        "gitea": { // only needed if the --gitea option is used
-            "pg": {
-                "user": "gitea", // PostgreSQL user
-                "password": "gitea_password", // PostgreSQL password
-                "db": "gitea_db" // PostgreSQL database name
-            }
+  {
+    "address": "192.168.1.10",           // (string) IP address or hostname of the master node
+    "user": "root",                      // (string) SSH username for the master node
+    "password": "password",              // (string) SSH password for the master node
+    "nodeName": "master-1",              // (string) Kubernetes node name for the master
+    "labels": {                           // (object) Key-value labels for the master node
+      "node-role.kubernetes.io/control-plane": "true" // (string) Example label for control-plane
+    },
+    "domain": "example.com",             // (string) Domain name for cluster-issuer and Gitea ingress (required if using those features)
+    "gitea": {                            // (object) Gitea configuration (only needed if --gitea is used)
+      "pg": {                             // (object) PostgreSQL configuration for Gitea
+        "user": "gitea",                 // (string) PostgreSQL username for Gitea
+        "password": "gitea_password",     // (string) PostgreSQL password for Gitea
+        "db": "gitea_db"                  // (string) PostgreSQL database name for Gitea
+      }
+    },
+    "privateNet": false,                  // (boolean) If true, worker nodes are installed by connecting from the master node (using the master's network),
+                                           // rather than connecting to each worker directly from your local machine. Set to true if your workers are only
+                                           // reachable from the master node (e.g., in a private subnet or behind NAT). Set to false if all nodes are directly
+                                           // accessible via SSH from your local machine. This flag determines the installation method for worker nodes.
+    "workers": [                          // (array) List of worker node objects
+      {
+        "address": "192.168.1.11",       // (string) IP address or hostname of the worker node
+        "user": "root",                  // (string) SSH username for the worker node
+        "password": "password",          // (string) SSH password for the worker node
+        "nodeName": "worker-1",          // (string) Kubernetes node name for the worker
+        "labels": {                       // (object) Key-value labels for the worker node
+          "node-role.kubernetes.io/worker": "true" // (string) Example label for worker
         },
-        "workers": [
-            {
-                "address": "192.168.1.11",
-                "user": "root",
-                "password": "password",
-                "nodeName": "worker-1",
-                "labels": "node-role.kubernetes.io/worker=true"
-            }
-        ]
-    }
+        "done": false                     // (boolean) Internal flag, should be false for new nodes
+      }
+    ]
+  }
 ]
 ```
 
@@ -93,7 +103,10 @@ k3sd --config-path=/path/to/clusters.json \
   --traefik \
   --cluster-issuer \
   --prometheus \
-  --gitea
+  --gitea \
+  --gitea-ingress \
+  --linkerd \
+  --linkerd-mc
 ```
 
 ### Install Linkerd
@@ -120,23 +133,27 @@ k3sd --config-path=/path/to/clusters.json --uninstall
 |--------------------|-------------------------------------------------------|
 | `--config-path`    | Path to clusters.json (required)                      |
 | `--cert-manager`   | Install cert-manager                                  |
-| `--traefik`        | Install Traefik                                       |
-| `--cluster-issuer` | Apply Cluster Issuer YAML (requires domain in config) |
+| `--traefik`        | Install Traefik with custom values                    |
+| `--cluster-issuer` | Apply ClusterIssuer YAML (requires domain in config)  |
 | `--gitea`          | Install Gitea (requires PostgreSQL configuration)     |
 | `--gitea-ingress`  | Apply Gitea Ingress (requires domain in config)       |
-| `--prometheus`     | Install Prometheus stack                              |
-| `--linkerd`        | Install Linkerd                                       |
+| `--prometheus`     | Install Prometheus stack (via Helm)                   |
+| `--linkerd`        | Install Linkerd with automated certs                  |
 | `--linkerd-mc`     | Install Linkerd with multi-cluster support            |
 | `--uninstall`      | Uninstall the cluster                                 |
 | `--version`        | Print the version and exit                            |
+| `-v`               | Enable verbose logging                                |
+| `--helm-atomic`    | Enable atomic Helm operations (rollback on failure)   |
 
 ## Build from Source
 
 ```bash
 git clone https://github.com/argon-chat/k3sd.git
 cd k3sd
-go build -ldflags "-X 'github.com/argon-chat/k3sd/utils.Version=<version>'" -o k3sd ./cli/main.go
+go build -ldflags "-s -w -X 'github.com/argon-chat/k3sd/utils.Version=<version>'" -o k3sd ./cli/main.go
 ```
+
+For smaller binaries, the build process now strips debug symbols by default. See the CI workflow for details.
 
 ## Contributing
 
