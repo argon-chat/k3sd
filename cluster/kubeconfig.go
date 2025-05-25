@@ -12,7 +12,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// DRY: Extract old key from map
 func getFirstKey(m map[string]interface{}) string {
 	for k := range m {
 		return k
