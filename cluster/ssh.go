@@ -1,3 +1,4 @@
+// Package cluster provides SSH utilities for connecting to and executing commands on cluster nodes.
 package cluster
 
 import (
@@ -15,6 +16,18 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// sshConnect establishes an SSH connection to a host using username, password, or private keys.
+//
+// Parameters:
+//
+//	userName: SSH username.
+//	password: SSH password.
+//	host: Hostname or IP.
+//
+// Returns:
+//
+//	*ssh.Client: SSH client.
+//	error: Error if connection fails.
 func sshConnect(userName, password, host string) (*ssh.Client, error) {
 	var authMethods []ssh.AuthMethod
 
@@ -59,6 +72,18 @@ func sshConnect(userName, password, host string) (*ssh.Client, error) {
 
 	return ssh.Dial("tcp", host+":22", cfg)
 }
+
+// ExecuteCommands executes a list of shell commands on a remote host via SSH.
+//
+// Parameters:
+//
+//	client: SSH client.
+//	commands: Commands to execute.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if any command fails.
 func ExecuteCommands(client *ssh.Client, commands []string, logger *utils.Logger) error {
 	for _, cmd := range commands {
 		if err := runCommand(client, cmd, logger); err != nil {
@@ -67,6 +92,18 @@ func ExecuteCommands(client *ssh.Client, commands []string, logger *utils.Logger
 	}
 	return nil
 }
+
+// runCommand runs a single shell command on a remote host via SSH.
+//
+// Parameters:
+//
+//	client: SSH client.
+//	cmd: Command to execute.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if command fails.
 func runCommand(client *ssh.Client, cmd string, logger *utils.Logger) error {
 	session, err := client.NewSession()
 	logIfError(logger, err, "failed to create session: %v")
@@ -87,6 +124,14 @@ func runCommand(client *ssh.Client, cmd string, logger *utils.Logger) error {
 	logger.LogCmd("%s", cmd)
 	return session.Run(cmd)
 }
+
+// streamOutput streams output from a command to the logger.
+//
+// Parameters:
+//
+//	r: Output stream.
+//	isErr: Whether this is stderr.
+//	logger: Logger for output.
 func streamOutput(r io.Reader, isErr bool, logger *utils.Logger) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -98,6 +143,19 @@ func streamOutput(r io.Reader, isErr bool, logger *utils.Logger) {
 		}
 	}
 }
+
+// ExecuteRemoteScript executes a shell script on a remote host via SSH and returns its output.
+//
+// Parameters:
+//
+//	client: SSH client.
+//	script: Script to execute.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	string: Script output.
+//	error: Error if execution fails.
 func ExecuteRemoteScript(client *ssh.Client, script string, logger *utils.Logger) (string, error) {
 	session, err := client.NewSession()
 	logIfError(logger, err, "failed to create session: %v")
