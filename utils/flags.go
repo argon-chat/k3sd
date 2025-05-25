@@ -1,3 +1,4 @@
+// Package utils provides utility functions and global variables for flag parsing and configuration.
 package utils
 
 import (
@@ -5,22 +6,38 @@ import (
 	"fmt"
 )
 
+// Flags contains parsed boolean flags for feature toggles.
 var (
-	Flags       map[string]bool
-	ConfigPath  string
-	Uninstall   bool
+	Flags map[string]bool
+	// ConfigPath is the path to the cluster config file.
+	ConfigPath string
+	// Uninstall indicates whether to uninstall the cluster.
+	Uninstall bool
+	// VersionFlag indicates whether to print version and exit.
 	VersionFlag bool
-	Verbose     bool
-	HelmAtomic  bool
+	// Verbose enables verbose logging.
+	Verbose bool
+	// HelmAtomic enables atomic Helm operations.
+	HelmAtomic bool
 )
 
+// boolFlagDef defines a boolean flag for command-line parsing.
 type boolFlagDef struct {
-	Name        string
-	Default     bool
-	Description string
-	MapKey      string
+	Name        string // The flag name (e.g. "cert-manager")
+	Default     bool   // The default value
+	Description string // Help text for the flag
+	MapKey      string // Key used in the Flags map
 }
 
+// ParseFlags parses command-line flags and populates global variables for configuration and feature toggles.
+//
+// Sets:
+//   - Flags: map of feature flags
+//   - ConfigPath: path to cluster config file
+//   - Uninstall: uninstall mode
+//   - VersionFlag: print version and exit
+//   - Verbose: enable verbose logging
+//   - HelmAtomic: enable atomic Helm operations
 func ParseFlags() {
 	boolFlags := []boolFlagDef{
 		{"cert-manager", false, "Apply the cert-manager YAMLs", "cert-manager"},
