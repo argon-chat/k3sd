@@ -35,8 +35,7 @@ func main() {
 	go logger.LogWorkerFile()
 	go logger.LogWorkerCmd()
 
-	// Uncomment to check for required commands before proceeding.
-	// checkCommandExists()
+	checkCommandExists()
 
 	if utils.Uninstall {
 		// Prompt the user for confirmation before uninstalling clusters.
@@ -73,7 +72,6 @@ func main() {
 func checkCommandExists() {
 	commands := []string{
 		"linkerd",
-		"kubectl",
 		"step",
 		"ssh",
 	}
