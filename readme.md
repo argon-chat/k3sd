@@ -132,6 +132,7 @@ k3sd --config-path=/path/to/clusters.json --uninstall
 | Option             | Description                                           |
 |--------------------|-------------------------------------------------------|
 | `--config-path`    | Path to clusters.json (required)                      |
+| `--yamls-path`      | Prefix path to all YAMLs for installing additional components. If not set, the program will look for a ./yamls directory or ~/.k3sd/yamls. |
 | `--cert-manager`   | Install cert-manager                                  |
 | `--traefik`        | Install Traefik with custom values                    |
 | `--cluster-issuer` | Apply ClusterIssuer YAML (requires domain in config)  |
