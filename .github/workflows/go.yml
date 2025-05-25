@@ -117,16 +117,6 @@ jobs:
           name: k3sd-${{ matrix.os }}-${{ matrix.arch }}
           path: |
             k3sd-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
-      - name: Archive yamls directory
-        run: |
-          if [ -d "yamls" ]; then
-            tar -czvf yamls.tar.gz yamls
-          fi
-      - name: Upload yamls directory artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: yamls
-          path: yamls.tar.gz
 
   release:
     runs-on: ubuntu-latest
@@ -134,6 +124,10 @@ jobs:
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Create Release
         id: create_release
@@ -147,6 +141,12 @@ jobs:
           body: |
             **Full Changelog**: https://github.com/argon-chat/k3sd/compare/${{ needs.determine-version.outputs.current_tag }}...${{ needs.determine-version.outputs.tag }}
           prerelease: false
+
+      - name: Archive yamls directory
+        run: |
+          if [ -d "yamls" ]; then
+            tar -czvf yamls.tar.gz yamls
+          fi
 
       - name: Upload yamls directory as Release Asset
         uses: actions/upload-release-asset@v1
