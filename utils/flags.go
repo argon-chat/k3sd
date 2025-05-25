@@ -19,6 +19,9 @@ var (
 	Verbose bool
 	// HelmAtomic enables atomic Helm operations.
 	HelmAtomic bool
+	// YamlsPath is the prefix path to all YAMLs used for installing additional components.
+	// If not set, the program will look for a ./yamls directory or ~/.k3sd/yamls.
+	YamlsPath string
 )
 
 // boolFlagDef defines a boolean flag for command-line parsing.
@@ -56,6 +59,7 @@ func ParseFlags() {
 	}
 
 	configPath := flag.String("config-path", "", "Path to clusters.json")
+	yamlsPath := flag.String("yamls-path", "", "Prefix path to all YAMLs for installing additional components. If not set, defaults to ./yamls or ~/.k3sd/yamls.")
 	uninstallFlag := flag.Bool("uninstall", false, "Uninstall the cluster")
 	versionFlag := flag.Bool("version", false, "Print the version and exit")
 	verbose := flag.Bool("v", false, "Enable verbose stdout logging")
@@ -67,6 +71,7 @@ func ParseFlags() {
 	Uninstall = *uninstallFlag
 	Verbose = *verbose
 	HelmAtomic = *helmAtomic
+	YamlsPath = *yamlsPath
 
 	Flags = make(map[string]bool)
 	for k, ptr := range flagPtrs {
