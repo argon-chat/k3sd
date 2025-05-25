@@ -1,3 +1,4 @@
+// Package cluster provides functions for creating and configuring Kubernetes clusters and their nodes.
 package cluster
 
 import (
@@ -21,12 +22,29 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// logIfError logs an error using the provided logger if the error is not EOF.
+//
+// Parameters:
+//
+//	logger: Logger for output.
+//	err: Error to check and log.
+//	format: Format string for the log message.
+//	args: Arguments for the format string.
 func logIfError(logger *utils.Logger, err error, format string, args ...interface{}) {
 	if err != nil && err.Error() != "EOF" {
 		logger.LogErr(format, append(args, err)...)
 	}
 }
 
+// buildSubstitutions creates a map from a variadic list of key-value string pairs.
+//
+// Parameters:
+//
+//	pairs: Alternating key, value pairs.
+//
+// Returns:
+//
+//	map[string]string: Map of substitutions.
 func buildSubstitutions(pairs ...string) map[string]string {
 	subs := make(map[string]string)
 	for i := 0; i+1 < len(pairs); i += 2 {
@@ -35,6 +53,16 @@ func buildSubstitutions(pairs ...string) map[string]string {
 	return subs
 }
 
+// forEachWorker applies a function to each worker in the slice.
+//
+// Parameters:
+//
+//	workers: Slice of Worker structs.
+//	fn: Function to apply to each worker.
+//
+// Returns:
+//
+//	error: Error if any function application fails.
 func forEachWorker(workers []Worker, fn func(*Worker) error) error {
 	for i := range workers {
 		if err := fn(&workers[i]); err != nil {
@@ -44,6 +72,13 @@ func forEachWorker(workers []Worker, fn func(*Worker) error) error {
 	return nil
 }
 
+// ensureNamespace ensures that a Kubernetes namespace exists, creating it if necessary.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	namespace: Namespace to ensure.
+//	logger: Logger for output.
 func ensureNamespace(kubeconfigPath, namespace string, logger *utils.Logger) {
 	if namespace != "default" && namespace != "kube-system" {
 		cmd := exec.Command("kubectl", "--kubeconfig", kubeconfigPath, "create", "namespace", namespace)
@@ -52,6 +87,20 @@ func ensureNamespace(kubeconfigPath, namespace string, logger *utils.Logger) {
 	}
 }
 
+// installHelmRelease installs a Helm release for a given component.
+//
+// Parameters:
+//
+//	component: Name of the component.
+//	kubeconfigPath: Path to kubeconfig.
+//	releaseName: Helm release name.
+//	namespace: Kubernetes namespace.
+//	repoName: Helm repository name.
+//	repoURL: Helm repository URL.
+//	chartName: Chart name.
+//	chartVersion: Chart version.
+//	valuesFile: Path to values file.
+//	logger: Logger for output.
 func installHelmRelease(component, kubeconfigPath, releaseName, namespace, repoName, repoURL, chartName, chartVersion, valuesFile string, logger *utils.Logger) {
 	logger.Log("Installing %s via Helm...", component)
 	if err := installHelmChart(kubeconfigPath, releaseName, namespace, repoName, repoURL, chartName, chartVersion, valuesFile, logger); err != nil {
@@ -59,6 +108,15 @@ func installHelmRelease(component, kubeconfigPath, releaseName, namespace, repoN
 	}
 }
 
+// applyComponentYAML applies a YAML manifest for a component to the cluster.
+//
+// Parameters:
+//
+//	component: Name of the component.
+//	kubeconfigPath: Path to kubeconfig.
+//	manifest: Path or URL to manifest.
+//	logger: Logger for output.
+//	substitutions: Substitutions to apply in the manifest.
 func applyComponentYAML(component, kubeconfigPath, manifest string, logger *utils.Logger, substitutions map[string]string) {
 	logger.Log("Applying %s...", component)
 	if err := applyYAMLManifest(kubeconfigPath, manifest, logger, substitutions); err != nil {
@@ -66,6 +124,18 @@ func applyComponentYAML(component, kubeconfigPath, manifest string, logger *util
 	}
 }
 
+// labelNode applies labels to a Kubernetes node.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	nodeName: Name of the node.
+//	labels: Labels to apply.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if labeling fails.
 func labelNode(kubeconfigPath, nodeName string, labels map[string]string, logger *utils.Logger) error {
 	clientset, err := getKubeClient(kubeconfigPath)
 	if err != nil {
@@ -87,6 +157,17 @@ func labelNode(kubeconfigPath, nodeName string, labels map[string]string, logger
 	}
 	return nil
 }
+
+// getKubeClient creates a Kubernetes client from a kubeconfig file.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//
+// Returns:
+//
+//	*kubernetes.Clientset: Kubernetes client.
+//	error: Error if client creation fails.
 func getKubeClient(kubeconfigPath string) (*kubernetes.Clientset, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
@@ -99,6 +180,18 @@ func getKubeClient(kubeconfigPath string) (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
+// CreateCluster creates and configures all clusters and their nodes.
+//
+// Parameters:
+//
+//	clusters: List of clusters to create.
+//	logger: Logger for output.
+//	additional: Additional commands to run during setup.
+//
+// Returns:
+//
+//	[]Cluster: Updated clusters.
+//	error: Error if creation fails.
 func CreateCluster(clusters []Cluster, logger *utils.Logger, additional []string) ([]Cluster, error) {
 	for ci, cluster := range clusters {
 		client, err := sshConnect(cluster.User, cluster.Password, cluster.Address)
@@ -124,6 +217,18 @@ func CreateCluster(clusters []Cluster, logger *utils.Logger, additional []string
 	return clusters, nil
 }
 
+// setupMasterNode sets up the master node for a cluster.
+//
+// Parameters:
+//
+//	cluster: Cluster to set up.
+//	client: SSH client.
+//	logger: Logger for output.
+//	additional: Additional commands to run.
+//
+// Returns:
+//
+//	error: Error if setup fails.
 func setupMasterNode(cluster *Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
 	if err := runBaseClusterSetup(cluster, client, logger, additional); err != nil {
 		return err
@@ -134,6 +239,18 @@ func setupMasterNode(cluster *Cluster, client *ssh.Client, logger *utils.Logger,
 	return nil
 }
 
+// runBaseClusterSetup runs the base setup commands for a cluster's master node.
+//
+// Parameters:
+//
+//	cluster: Cluster to set up.
+//	client: SSH client.
+//	logger: Logger for output.
+//	additional: Additional commands to run.
+//
+// Returns:
+//
+//	error: Error if setup fails.
 func runBaseClusterSetup(cluster *Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
 	baseCmds := append(baseClusterCommands(*cluster), additional...)
 	logger.Log("Connecting to cluster: %s", cluster.Address)
@@ -145,10 +262,24 @@ func runBaseClusterSetup(cluster *Cluster, client *ssh.Client, logger *utils.Log
 	return nil
 }
 
+// labelMasterNode applies labels to the master node of a cluster.
+//
+// Parameters:
+//
+//	cluster: Cluster whose master node to label.
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func labelMasterNode(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	_ = labelNode(kubeconfigPath, cluster.NodeName, cluster.Labels, logger)
 }
 
+// applyOptionalComponents applies optional components to the cluster based on flags.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyOptionalComponents(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	if utils.Flags["cert-manager"] {
 		applyCertManager(kubeconfigPath, logger)
@@ -173,6 +304,12 @@ func applyOptionalComponents(cluster *Cluster, kubeconfigPath string, logger *ut
 	}
 }
 
+// applyCertManager applies the cert-manager YAMLs to the cluster.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyCertManager(kubeconfigPath string, logger *utils.Logger) {
 	applyComponentYAML("cert-manager", kubeconfigPath, "https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml", logger, nil)
 	applyComponentYAML("cert-manager CRDs", kubeconfigPath, "https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.crds.yaml", logger, nil)
@@ -180,15 +317,35 @@ func applyCertManager(kubeconfigPath string, logger *utils.Logger) {
 	time.Sleep(30 * time.Second)
 }
 
+// applyTraefikValues applies the Traefik values YAML to the cluster.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyTraefikValues(kubeconfigPath string, logger *utils.Logger) {
 	applyComponentYAML("traefik-values", kubeconfigPath, "yamls/traefik-values.yaml", logger, nil)
 }
 
+// applyClusterIssuer applies the ClusterIssuer YAML to the cluster, with domain substitutions.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyClusterIssuer(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	substitutions := buildSubstitutions("${DOMAIN}", cluster.Domain, "DOMAIN", cluster.Domain)
 	applyComponentYAML("clusterissuer", kubeconfigPath, "yamls/clusterissuer.yaml", logger, substitutions)
 }
 
+// applyGitea applies the Gitea YAML to the cluster, with Postgres substitutions.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyGitea(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	substitutions := buildSubstitutions(
 		"${POSTGRES_USER}", cluster.Gitea.Pg.Username,
@@ -201,11 +358,24 @@ func applyGitea(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	}
 }
 
+// applyGiteaIngress applies the Gitea Ingress YAML to the cluster, with domain substitutions.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyGiteaIngress(cluster *Cluster, kubeconfigPath string, logger *utils.Logger) {
 	substitutions := buildSubstitutions("${DOMAIN}", cluster.Domain, "DOMAIN", cluster.Domain)
 	applyComponentYAML("gitea-ingress", kubeconfigPath, "yamls/gitea.ingress.yaml", logger, substitutions)
 }
 
+// applyPrometheus installs the Prometheus stack via Helm in the monitoring namespace.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to kubeconfig.
+//	logger: Logger for output.
 func applyPrometheus(kubeconfigPath string, logger *utils.Logger) {
 	ensureNamespace(kubeconfigPath, "monitoring", logger)
 	installHelmRelease(
@@ -222,6 +392,17 @@ func applyPrometheus(kubeconfigPath string, logger *utils.Logger) {
 	)
 }
 
+// setupWorkerNodes sets up all worker nodes for a cluster.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	client: SSH client.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if setup fails.
 func setupWorkerNodes(cluster *Cluster, client *ssh.Client, logger *utils.Logger) error {
 	return forEachWorker(cluster.Workers, func(worker *Worker) error {
 		if worker.Done {
@@ -231,6 +412,18 @@ func setupWorkerNodes(cluster *Cluster, client *ssh.Client, logger *utils.Logger
 	})
 }
 
+// joinAndLabelWorker joins a worker node to the cluster and applies labels.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	worker: Worker node to join and label.
+//	client: SSH client.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if joining or labeling fails.
 func joinAndLabelWorker(cluster *Cluster, worker *Worker, client *ssh.Client, logger *utils.Logger) error {
 	worker.Done = true
 	token, err := ExecuteRemoteScript(client, "echo $(k3s token create)", logger)
@@ -244,6 +437,19 @@ func joinAndLabelWorker(cluster *Cluster, worker *Worker, client *ssh.Client, lo
 	return labelWorkerNode(cluster, worker, logger)
 }
 
+// joinWorker joins a worker node to the cluster using the provided token.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	worker: Worker node to join.
+//	client: SSH client.
+//	logger: Logger for output.
+//	token: Cluster join token.
+//
+// Returns:
+//
+//	error: Error if joining fails.
 func joinWorker(cluster *Cluster, worker *Worker, client *ssh.Client, logger *utils.Logger, token string) error {
 	if cluster.PrivateNet {
 		joinCmds := []string{
@@ -272,10 +478,28 @@ func joinWorker(cluster *Cluster, worker *Worker, client *ssh.Client, logger *ut
 }
 
 // DRY: Use generic node labeling function
+// labelWorkerNode applies labels to a worker node in the cluster.
+//
+// Parameters:
+//
+//	cluster: Cluster to modify.
+//	worker: Worker node to label.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	error: Error if labeling fails.
 func labelWorkerNode(cluster *Cluster, worker *Worker, logger *utils.Logger) error {
 	kubeconfigPath := path.Join("./kubeconfigs", fmt.Sprintf("%s/%s.yaml", logger.Id, cluster.NodeName))
 	return labelNode(kubeconfigPath, worker.NodeName, worker.Labels, logger)
 }
+
+// pipeAndLog runs a command and logs its stdout and stderr output.
+//
+// Parameters:
+//
+//	cmd: Command to run.
+//	logger: Logger for output.
 func pipeAndLog(cmd *exec.Cmd, logger *utils.Logger) {
 	outPipe, _ := cmd.StdoutPipe()
 	errPipe, _ := cmd.StderrPipe()
@@ -286,6 +510,13 @@ func pipeAndLog(cmd *exec.Cmd, logger *utils.Logger) {
 	logger.Log("Command executed successfully")
 }
 
+// pipeAndApply runs a command, collects its YAML output, and applies it to the cluster.
+//
+// Parameters:
+//
+//	cmd: Command to run.
+//	kubeconfig: Path to kubeconfig.
+//	logger: Logger for output.
 func pipeAndApply(cmd *exec.Cmd, kubeconfig string, logger *utils.Logger) {
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -299,6 +530,12 @@ func pipeAndApply(cmd *exec.Cmd, kubeconfig string, logger *utils.Logger) {
 	applyYAMLToCluster(yaml.String(), kubeconfig, logger)
 }
 
+// collectYAML reads lines from a reader and appends them to a YAML string builder.
+//
+// Parameters:
+//
+//	r: Reader to read from.
+//	yaml: String builder to append YAML to.
 func collectYAML(r io.Reader, yaml *strings.Builder) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -306,6 +543,13 @@ func collectYAML(r io.Reader, yaml *strings.Builder) {
 	}
 }
 
+// applyYAMLToCluster applies a YAML string to a Kubernetes cluster using kubectl.
+//
+// Parameters:
+//
+//	yaml: YAML content to apply.
+//	kubeconfig: Path to kubeconfig.
+//	logger: Logger for output.
 func applyYAMLToCluster(yaml string, kubeconfig string, logger *utils.Logger) {
 	apply := exec.Command("kubectl", "--kubeconfig", kubeconfig, "apply", "-f", "-")
 	apply.Stdin = strings.NewReader(yaml)
@@ -315,6 +559,16 @@ func applyYAMLToCluster(yaml string, kubeconfig string, logger *utils.Logger) {
 	}
 	logger.Log("Apply output:\n%s", string(out))
 }
+
+// baseClusterCommands returns the base setup commands for a cluster's master node.
+//
+// Parameters:
+//
+//	cluster: Cluster to set up.
+//
+// Returns:
+//
+//	[]string: List of setup commands.
 func baseClusterCommands(cluster Cluster) []string {
 	return []string{
 		"sudo apt-get update -y",
