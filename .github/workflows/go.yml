@@ -193,13 +193,3 @@ jobs:
           asset_path: ./k3sd-windows-amd64/k3sd-windows-amd64.tar.gz
           asset_name: k3sd-windows-amd64.tar.gz
           asset_content_type: application/gzip
-
-      - name: Upload Binary Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./k3sd-linux-amd64/k3sd
-          asset_name: k3sd-linux-amd64
-          asset_content_type: application/octet-stream
