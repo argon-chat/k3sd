@@ -1,4 +1,3 @@
-// Package utils provides a Logger type and related utilities for logging cluster operations.
 package utils
 
 import (
@@ -6,6 +5,20 @@ import (
 	"log"
 	"time"
 )
+
+// LogIfError logs an error using the provided logger if the error is not EOF.
+//
+// Parameters:
+//
+//	logger: Logger for output.
+//	err: Error to check and log.
+//	format: Format string for the log message.
+//	args: Arguments for the log message.
+func LogIfError(logger *Logger, err error, format string, args ...interface{}) {
+	if err != nil && err.Error() != "EOF" {
+		logger.LogErr(format, append(args, err)...)
+	}
+}
 
 type Logger struct {
 	// Stdout is the channel for standard output log messages.
