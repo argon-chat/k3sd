@@ -184,4 +184,71 @@ The following table lists planned and completed features/milestones for the proj
 
 ## Contributing
 
+
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Adding a New Addon
+
+K3SD uses a unified, extensible addon system. All addons are registered in the `pkg/addons/addonRegistry.go` file and must have the following function signature:
+
+```go
+func MyAddon(cluster *types.Cluster, logger *utils.Logger)
+```
+
+### Example: Adding Gitea
+
+1. **Create the Addon Function**  
+   In `pkg/addons/gitea.go`:
+   ```go
+   func ApplyGiteaAddon(cluster *types.Cluster, logger *utils.Logger) {
+       if !utils.Flags[utils.FlagGitea] {
+           return
+       }
+       kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+
+       // Example 1: Apply a YAML manifest (with substitutions)
+       substitutions := clusterutils.BuildSubstitutions(
+           "${POSTGRES_USER}", cluster.Gitea.Pg.Username,
+           "${POSTGRES_PASSWORD}", cluster.Gitea.Pg.Password,
+           "${POSTGRES_DB}", cluster.Gitea.Pg.DbName,
+       )
+       clusterutils.ApplyComponentYAML(
+           "gitea",                                 // name for logging
+           kubeconfig,                               // kubeconfig path
+           clusterutils.ResolveYamlPath("gitea.yaml"), // manifest path
+           logger,                                   // logger
+           substitutions,                            // map[string]string for variable substitution
+       )
+
+       // Example 2: Install a Helm chart
+       clusterutils.InstallHelmChart(
+           kubeconfig,                               // kubeconfig path
+           "gitea",                                 // release name
+           "default",                               // namespace
+           "gitea-charts",                          // repo name
+           "https://dl.gitea.io/charts/",           // repo URL
+           "gitea",                                 // chart name
+           "10.0.0",                                // chart version
+           "",                                      // values file path or leave empty
+           logger,                                   // logger
+       )
+
+       // Wait for deployment to be ready
+       clusterutils.WaitForDeploymentReady(kubeconfig, "gitea", "default", logger)
+   }
+   ```
+
+2. **Register the Addon**  
+   In `pkg/addons/addonRegistry.go`:
+   ```go
+   var AddonRegistry = []AddonFunc{
+       // ... other addons
+       ApplyGiteaAddon,
+   }
+   ```
+
+### Guidelines
+
+- Use the provided helpers in `pkg/clusterutils` for manifest application, Helm, and readiness checks.
+- Addons should be idempotent and log all actions.
+- Addons are invoked automatically if their corresponding CLI flag is set.

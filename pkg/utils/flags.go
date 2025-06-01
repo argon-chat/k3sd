@@ -1,4 +1,3 @@
-// Package utils provides utility functions and global variables for flag parsing and configuration.
 package utils
 
 import (
@@ -6,8 +5,19 @@ import (
 	"fmt"
 )
 
-// Flags contains parsed boolean flags for feature toggles.
+const (
+	FlagCertManager   = "cert-manager"
+	FlagTraefikValues = "traefik"
+	FlagClusterIssuer = "cluster-issuer"
+	FlagGitea         = "gitea"
+	FlagGiteaIngress  = "gitea-ingress"
+	FlagPrometheus    = "prometheus"
+	FlagLinkerd       = "linkerd"
+	FlagLinkerdMC     = "linkerd-mc"
+)
+
 var (
+	// Flags contains parsed boolean flags for feature toggles.
 	Flags map[string]bool
 	// ConfigPath is the path to the cluster config file.
 	ConfigPath string
@@ -43,14 +53,14 @@ type boolFlagDef struct {
 //   - HelmAtomic: enable atomic Helm operations
 func ParseFlags() {
 	boolFlags := []boolFlagDef{
-		{"cert-manager", false, "Apply the cert-manager YAMLs", "cert-manager"},
-		{"traefik", false, "Apply the Traefik YAML", "traefik-values"},
-		{"cluster-issuer", false, "Apply the Cluster Issuer YAML, need to specify `domain` in your config json", "clusterissuer"},
-		{"gitea", false, "Apply the Gitea YAML", "gitea"},
-		{"gitea-ingress", false, "Apply the Gitea Ingress YAML, need to specify `domain` in your config json", "gitea-ingress"},
-		{"prometheus", false, "Apply the Prometheus YAML", "prometheus"},
-		{"linkerd", false, "Install linkerd", "linkerd"},
-		{"linkerd-mc", false, "Install linkerd multicluster(will install linkerd first)", "linkerd-mc"},
+		{FlagCertManager, false, "Apply the cert-manager YAMLs", FlagCertManager},
+		{FlagTraefikValues, false, "Apply the Traefik YAML", FlagTraefikValues},
+		{FlagClusterIssuer, false, "Apply the Cluster Issuer YAML, need to specify `domain` in your config json", FlagClusterIssuer},
+		{FlagGitea, false, "Apply the Gitea YAML", FlagGitea},
+		{FlagGiteaIngress, false, "Apply the Gitea Ingress YAML, need to specify `domain` in your config json", FlagGiteaIngress},
+		{FlagPrometheus, false, "Apply the Prometheus YAML", FlagPrometheus},
+		{FlagLinkerd, false, "Install linkerd", FlagLinkerd},
+		{FlagLinkerdMC, false, "Install linkerd multicluster(will install linkerd first)", FlagLinkerdMC},
 	}
 
 	flagPtrs := make(map[string]*bool)
