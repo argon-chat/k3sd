@@ -1,4 +1,3 @@
-// The main package for the k3sd CLI tool. Handles cluster creation, uninstallation, and logging.
 package main
 
 import (
@@ -9,27 +8,25 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/argon-chat/k3sd/cluster"
-	"github.com/argon-chat/k3sd/utils"
+	. "github.com/argon-chat/k3sd/pkg/cluster"
+	clusterstore "github.com/argon-chat/k3sd/pkg/clusterstore"
+	. "github.com/argon-chat/k3sd/pkg/utils"
 )
 
-// main is the entry point for the k3sd CLI tool.
-// It parses command-line flags, loads cluster configuration, and either creates or uninstalls clusters.
-// It also sets up logging and saves the updated cluster state.
 func main() {
-	utils.ParseFlags()
+	ParseFlags()
 
-	if utils.VersionFlag {
-		fmt.Printf("K3SD version: %s\n", utils.Version)
+	if VersionFlag {
+		fmt.Printf("K3SD version: %s\n", Version)
 		os.Exit(0)
 	}
 
-	clusters, err := cluster.LoadClusters(utils.ConfigPath)
+	clusters, err := clusterstore.LoadClusters(ConfigPath)
 	if err != nil {
 		log.Fatalf("failed to load clusters: %v", err)
 	}
 
-	logger := utils.NewLogger("cli")
+	logger := NewLogger("cli")
 	go logger.LogWorker()
 	go logger.LogWorkerErr()
 	go logger.LogWorkerFile()
@@ -37,38 +34,35 @@ func main() {
 
 	checkCommandExists()
 
-	if utils.Uninstall {
-		// Prompt the user for confirmation before uninstalling clusters.
+	if Uninstall {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Are you sure you want to uninstall the clusters? (yes/no): ")
+		fmt.Print("Are you sure you want to uninstall the clusters? (yes/y/no/n): ")
 		response, _ := reader.ReadString('\n')
 		response = strings.TrimSpace(strings.ToLower(response))
 
-		if response == "yes" {
-			clusters, err = cluster.UninstallCluster(clusters, logger)
+		if response == "yes" || response == "y" {
+			clusters, err = UninstallCluster(clusters, logger)
 			if err != nil {
 				log.Fatalf("failed to uninstall clusters: %v", err)
 			}
-		} else {
+		} else if response == "no" || response == "n" {
 			fmt.Println("Uninstallation canceled.")
 			return
+		} else {
+			log.Fatalf("And just what do you mean by %s?", response)
 		}
 	} else {
-		// Create or update clusters as specified in the configuration.
-		clusters, err = cluster.CreateCluster(clusters, logger, []string{})
+		clusters, err = CreateCluster(clusters, logger, []string{})
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
 		}
 	}
 
-	// Save the updated cluster state to the configuration file.
-	if err := cluster.SaveClusters(utils.ConfigPath, clusters); err != nil {
+	if err := clusterstore.SaveClusters(ConfigPath, clusters); err != nil {
 		log.Fatalf("failed to save clusters: %v", err)
 	}
 }
 
-// checkCommandExists verifies that all required external commands are available in the system's PATH.
-// If any command is missing, the program will terminate with a fatal error.
 func checkCommandExists() {
 	commands := []string{
 		"linkerd",
