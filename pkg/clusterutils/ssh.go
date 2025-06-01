@@ -1,5 +1,4 @@
-// Package cluster provides SSH utilities for connecting to and executing commands on cluster nodes.
-package cluster
+package clusterutils
 
 import (
 	"bufio"
@@ -12,23 +11,23 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/argon-chat/k3sd/utils"
+	"github.com/argon-chat/k3sd/pkg/utils"
+
 	"golang.org/x/crypto/ssh"
 )
 
-// sshConnect establishes an SSH connection to a host using username, password, or private keys.
+// SSHConnect establishes an SSH connection to the given host using username and password or available private keys.
 //
 // Parameters:
 //
 //	userName: SSH username.
-//	password: SSH password.
-//	host: Hostname or IP.
+//	password: SSH password (optional if key is available).
+//	host: Hostname or IP address.
 //
 // Returns:
 //
-//	*ssh.Client: SSH client.
-//	error: Error if connection fails.
-func sshConnect(userName, password, host string) (*ssh.Client, error) {
+//	SSH client and error if connection fails.
+func SSHConnect(userName, password, host string) (*ssh.Client, error) {
 	var authMethods []ssh.AuthMethod
 
 	usr, err := user.Current()
@@ -73,17 +72,17 @@ func sshConnect(userName, password, host string) (*ssh.Client, error) {
 	return ssh.Dial("tcp", host+":22", cfg)
 }
 
-// ExecuteCommands executes a list of shell commands on a remote host via SSH.
+// ExecuteCommands runs a list of shell commands on the remote host via SSH.
 //
 // Parameters:
 //
 //	client: SSH client.
-//	commands: Commands to execute.
+//	commands: List of shell commands to execute.
 //	logger: Logger for output.
 //
 // Returns:
 //
-//	error: Error if any command fails.
+//	Error if any command fails.
 func ExecuteCommands(client *ssh.Client, commands []string, logger *utils.Logger) error {
 	for _, cmd := range commands {
 		if err := runCommand(client, cmd, logger); err != nil {
@@ -93,46 +92,30 @@ func ExecuteCommands(client *ssh.Client, commands []string, logger *utils.Logger
 	return nil
 }
 
-// runCommand runs a single shell command on a remote host via SSH.
-//
-// Parameters:
-//
-//	client: SSH client.
-//	cmd: Command to execute.
-//	logger: Logger for output.
-//
-// Returns:
-//
-//	error: Error if command fails.
 func runCommand(client *ssh.Client, cmd string, logger *utils.Logger) error {
 	session, err := client.NewSession()
-	logIfError(logger, err, "failed to create session: %v")
+	utils.LogIfError(logger, err, "failed to create session: %v")
 	if err != nil {
 		return fmt.Errorf("failed to create session: %v", err)
 	}
-	defer func(session *ssh.Session) {
-		err := session.Close()
-		logIfError(logger, err, "Error closing SSH session: %v\n")
-	}(session)
+	defer closeSSHSession(session, logger)
 
 	stdout, _ := session.StdoutPipe()
 	stderr, _ := session.StderrPipe()
 
-	go streamOutput(stdout, false, logger)
-	go streamOutput(stderr, true, logger)
+	go StreamOutput(stdout, false, logger)
+	go StreamOutput(stderr, true, logger)
 
 	logger.LogCmd("%s", cmd)
 	return session.Run(cmd)
 }
 
-// streamOutput streams output from a command to the logger.
-//
-// Parameters:
-//
-//	r: Output stream.
-//	isErr: Whether this is stderr.
-//	logger: Logger for output.
-func streamOutput(r io.Reader, isErr bool, logger *utils.Logger) {
+func closeSSHSession(session *ssh.Session, logger *utils.Logger) {
+	err := session.Close()
+	utils.LogIfError(logger, err, "Error closing SSH session: %v\n")
+}
+
+func StreamOutput(r io.Reader, isErr bool, logger *utils.Logger) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -144,38 +127,38 @@ func streamOutput(r io.Reader, isErr bool, logger *utils.Logger) {
 	}
 }
 
-// ExecuteRemoteScript executes a shell script on a remote host via SSH and returns its output.
+// ExecuteRemoteScript runs a shell script on the remote host via SSH and returns its output.
 //
 // Parameters:
 //
 //	client: SSH client.
-//	script: Script to execute.
+//	script: Shell script to execute.
 //	logger: Logger for output.
 //
 // Returns:
 //
-//	string: Script output.
-//	error: Error if execution fails.
+//	Output string and error if execution fails.
 func ExecuteRemoteScript(client *ssh.Client, script string, logger *utils.Logger) (string, error) {
 	session, err := client.NewSession()
-	logIfError(logger, err, "failed to create session: %v")
+	utils.LogIfError(logger, err, "failed to create session: %v")
 	if err != nil {
 		return "", fmt.Errorf("failed to create session: %v", err)
 	}
-	defer func(session *ssh.Session) {
-		err := session.Close()
-		logIfError(logger, err, "Error closing SSH session: %v\n")
-	}(session)
+	defer closeSSHSession(session, logger)
 
 	var stdout, stderr bytes.Buffer
 	session.Stdout = &stdout
 	session.Stderr = &stderr
 
-	command := fmt.Sprintf("bash -c '%s'", script)
+	command := buildBashCommand(script)
 	logger.LogCmd("%s", command)
 	if err := session.Run(command); err != nil {
 		return "", fmt.Errorf("error executing script: %v, stderr: %s", err, stderr.String())
 	}
 
 	return stdout.String(), nil
+}
+
+func buildBashCommand(script string) string {
+	return fmt.Sprintf("bash -c '%s'", script)
 }
