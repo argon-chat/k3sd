@@ -1,30 +1,30 @@
-// Package cluster provides functions for loading and saving cluster configuration from JSON files.
 package cluster
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/argon-chat/k3sd/pkg/types"
 )
 
-// LoadClusters loads cluster configuration from a JSON file.
+// LoadClusters loads a list of clusters from the specified JSON file.
 //
 // Parameters:
 //
-//	path: Path to the JSON file.
+//	path: Path to the clusters.json file.
 //
 // Returns:
 //
-//	[]Cluster: List of clusters.
-//	error: Error if loading or parsing fails.
-func LoadClusters(path string) ([]Cluster, error) {
+//	Slice of Cluster objects and error if loading or decoding fails.
+func LoadClusters(path string) ([]types.Cluster, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open cluster config: %w", err)
 	}
 	defer file.Close()
 
-	var clusters []Cluster
+	var clusters []types.Cluster
 	err = json.NewDecoder(file).Decode(&clusters)
 	if err != nil {
 		return nil, fmt.Errorf("decode cluster config: %w", err)
@@ -32,17 +32,17 @@ func LoadClusters(path string) ([]Cluster, error) {
 	return clusters, nil
 }
 
-// SaveClusters saves cluster configuration to a JSON file.
+// SaveClusters saves the list of clusters to the specified JSON file.
 //
 // Parameters:
 //
-//	path: Path to the JSON file.
-//	clusters: List of clusters to save.
+//	path: Path to the clusters.json file.
+//	clusters: Slice of Cluster objects to save.
 //
 // Returns:
 //
-//	error: Error if writing fails.
-func SaveClusters(path string, clusters []Cluster) error {
+//	Error if marshalling or writing fails.
+func SaveClusters(path string, clusters []types.Cluster) error {
 	data, err := json.MarshalIndent(clusters, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal cluster config: %w", err)
