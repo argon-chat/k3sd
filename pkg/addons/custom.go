@@ -61,6 +61,6 @@ func applyCustomHelmAddon(name string, cluster *types.Cluster, helm *types.HelmC
 		logger,
 	)
 	if err != nil {
-		logger.Log("Helm install failed for custom addon '%s': %v", name, err)
+		logger.LogErr("Helm install failed for custom addon '%s': %v", name, err)
 	}
 }
