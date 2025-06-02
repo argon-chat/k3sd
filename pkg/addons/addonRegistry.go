@@ -5,12 +5,17 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-// AddonFunc defines the signature for addon application functions.
-// Each addon function should accept a pointer to a Cluster and a Logger.
+// AddonFunc is the function signature for an addon application function.
+//
+// Parameters:
+//
+//	cluster: The cluster to apply the addon to.
+//	logger: Logger for output.
 type AddonFunc func(*types.Cluster, *utils.Logger)
 
 // AddonRegistry is the list of all registered addon application functions.
-// Add new addons here to make them available for cluster installation.
+//
+// Each function in this list applies a specific built-in addon to a cluster.
 var AddonRegistry = []AddonFunc{
 	ApplyCertManagerAddon,
 	ApplyTraefikAddon,

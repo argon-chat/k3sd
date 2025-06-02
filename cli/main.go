@@ -8,25 +8,35 @@ import (
 	"os/exec"
 	"strings"
 
-	. "github.com/argon-chat/k3sd/pkg/cluster"
-	clusterstore "github.com/argon-chat/k3sd/pkg/clusterstore"
-	. "github.com/argon-chat/k3sd/pkg/utils"
+	"github.com/argon-chat/k3sd/cli/tui"
+	clusterpkg "github.com/argon-chat/k3sd/pkg/cluster"
+	clusterstorepkg "github.com/argon-chat/k3sd/pkg/clusterstore"
+	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
 func main() {
-	ParseFlags()
+	utils.ParseFlags()
 
-	if VersionFlag {
-		fmt.Printf("K3SD version: %s\n", Version)
+	if utils.VersionFlag {
+		fmt.Printf("K3SD version: %s\n", utils.Version)
 		os.Exit(0)
 	}
 
-	clusters, err := clusterstore.LoadClusters(ConfigPath)
+	if utils.GenerateFlag {
+		err := tui.RunGenerateTUI()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	clusters, err := clusterstorepkg.LoadClusters(utils.ConfigPath)
 	if err != nil {
 		log.Fatalf("failed to load clusters: %v", err)
 	}
 
-	logger := NewLogger("cli")
+	logger := utils.NewLogger("cli")
 	go logger.LogWorker()
 	go logger.LogWorkerErr()
 	go logger.LogWorkerFile()
@@ -34,31 +44,32 @@ func main() {
 
 	checkCommandExists()
 
-	if Uninstall {
+	if utils.Uninstall {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Are you sure you want to uninstall the clusters? (yes/y/no/n): ")
 		response, _ := reader.ReadString('\n')
 		response = strings.TrimSpace(strings.ToLower(response))
 
-		if response == "yes" || response == "y" {
-			clusters, err = UninstallCluster(clusters, logger)
+		switch response {
+		case "yes", "y":
+			clusters, err = clusterpkg.UninstallCluster(clusters, logger)
 			if err != nil {
 				log.Fatalf("failed to uninstall clusters: %v", err)
 			}
-		} else if response == "no" || response == "n" {
+		case "no", "n":
 			fmt.Println("Uninstallation canceled.")
 			return
-		} else {
+		default:
 			log.Fatalf("And just what do you mean by %s?", response)
 		}
 	} else {
-		clusters, err = CreateCluster(clusters, logger, []string{})
+		clusters, err = clusterpkg.CreateCluster(clusters, logger, []string{})
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
 		}
 	}
 
-	if err := clusterstore.SaveClusters(ConfigPath, clusters); err != nil {
+	if err := clusterstorepkg.SaveClusters(utils.ConfigPath, clusters); err != nil {
 		log.Fatalf("failed to save clusters: %v", err)
 	}
 }
