@@ -2,16 +2,6 @@ package types
 
 import "fmt"
 
-// Cluster represents a K3s cluster configuration, including master and worker nodes, domain, and optional Gitea config.
-//
-// Fields:
-//
-//	Worker:      Embedded master node configuration (inherits Worker fields)
-//	Domain:      Domain for cluster-issuer and ingress
-//	Gitea:       Gitea configuration (see Gitea struct)
-//	PrivateNet:  If true, workers are installed from master
-//	Workers:     List of worker nodes
-//
 // AddonConfig represents the configuration for a built-in addon.
 type AddonConfig struct {
 	Enabled bool              `json:"enabled"`
