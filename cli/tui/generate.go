@@ -31,7 +31,7 @@ func addSectionToForm(form *tview.Form, fields []AddonFormField) {
 func addGiteaSectionToForm(app *tview.Application, enabledAddons map[string]bool, domain, masterIP, masterUser, masterPassword, nodeName string, privateNet bool, outputPath string, onDone func()) *tview.Form {
 	giteaFields := []AddonFormField{
 		{Label: "POSTGRES_USER", Default: "gitea"},
-		{Label: "POSTGRES_PASSWORD", Default: "changeme", IsPassword: false},
+		{Label: "POSTGRES_PASSWORD", Default: "changeme", IsPassword: true},
 		{Label: "POSTGRES_DB", Default: "giteadb"},
 	}
 	form := tview.NewForm()
