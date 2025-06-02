@@ -92,6 +92,7 @@ func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
 	for i := range addons.AddonRegistry {
 		addons.AddonRegistry[i](cluster, logger)
 	}
+	addons.ApplyCustomAddons(cluster, logger)
 }
 
 func setupWorkerNodes(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger) error {
@@ -149,7 +150,11 @@ func joinWorkerPublicNet(cluster *types.Cluster, worker *types.Worker, logger *u
 		logger.Log("Failed to connect to worker %s directly: %v", worker.Address, err)
 		return nil
 	}
-	defer workerClient.Close()
+	defer func() {
+		if err := workerClient.Close(); err != nil {
+			logger.LogErr("failed to close worker SSH client: %v", err)
+		}
+	}()
 	joinCmds := []string{
 		"sudo apt update && sudo apt install -y curl",
 		fmt.Sprintf("curl -sfL https://get.k3s.io | K3S_URL=https://%s:6443 K3S_TOKEN='%s' INSTALL_K3S_EXEC='--node-name %s' sh -", cluster.Address, strings.TrimSpace(token), worker.NodeName),
