@@ -6,23 +6,26 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-// ApplyClusterIssuerAddon applies the ClusterIssuer YAML to the cluster if enabled by flags.
-// It substitutes the domain and applies the manifest.
+// ApplyClusterIssuerAddon applies the ClusterIssuer YAML to the cluster if enabled.
 //
 // Parameters:
 //
 //	cluster: The cluster to apply the addon to.
 //	logger: Logger for output.
 func ApplyClusterIssuerAddon(cluster *types.Cluster, logger *utils.Logger) {
-	if !utils.Flags[utils.FlagClusterIssuer] {
+	addon, ok := cluster.Addons["cluster-issuer"]
+	if !ok || !addon.Enabled {
 		return
 	}
 	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
-	applyClusterIssuer(cluster, kubeconfig, logger)
+	applyClusterIssuer(kubeconfig, logger, &addon)
 }
 
-// applyClusterIssuer applies the ClusterIssuer manifest with domain substitutions.
-func applyClusterIssuer(cluster *types.Cluster, kubeconfigPath string, logger *utils.Logger) {
-	substitutions := clusterutils.BuildSubstitutions("${DOMAIN}", cluster.Domain, "DOMAIN", cluster.Domain)
-	clusterutils.ApplyComponentYAML("clusterissuer", kubeconfigPath, clusterutils.ResolveYamlPath("clusterissuer.yaml"), logger, substitutions)
+func applyClusterIssuer(kubeconfigPath string, logger *utils.Logger, addon *types.AddonConfig) {
+	substitutions := addon.Subs
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("clusterissuer.yaml")
+	}
+	clusterutils.ApplyComponentYAML("clusterissuer", kubeconfigPath, manifestPath, logger, substitutions)
 }
