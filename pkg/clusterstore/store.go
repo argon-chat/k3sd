@@ -22,7 +22,7 @@ func LoadClusters(path string) ([]types.Cluster, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open cluster config: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var clusters []types.Cluster
 	err = json.NewDecoder(file).Decode(&clusters)
