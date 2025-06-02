@@ -87,7 +87,9 @@ func GetManifestData(manifestPathOrURL string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 		return io.ReadAll(resp.Body)
 	}
 	return os.ReadFile(manifestPathOrURL)
@@ -140,8 +142,12 @@ func ApplyYAMLManifest(kubeconfigPath, manifestPathOrURL string, logger *utils.L
 		return err
 	}
 	defer func() {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
+		if err := tmpFile.Close(); err != nil {
+			logger.LogErr("Failed to close temp manifest file: %v", err)
+		}
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			logger.LogErr("Failed to remove temp manifest file: %v", err)
+		}
 	}()
 	if err := writeManifestData(tmpFile, data, logger); err != nil {
 		return err
