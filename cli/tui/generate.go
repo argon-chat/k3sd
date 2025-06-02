@@ -29,27 +29,53 @@ func addSectionToForm(form *tview.Form, fields []AddonFormField) {
 	}
 }
 
+func addAddonConfigSectionToForm(
+	app *tview.Application,
+	addonName string,
+	fields []AddonFormField,
+	enabledAddons map[string]bool,
+	domain, masterIP, masterUser, masterPassword, nodeName string,
+	privateNet bool,
+	outputPath string,
+	subsFromForm func(form *tview.Form) map[string]string,
+	onDone func(),
+) *tview.Form {
+	form := tview.NewForm()
+	addSectionToForm(form, fields)
+	form.AddButton("Generate", func() {
+		subs := subsFromForm(form)
+		addons := buildAddonsMap(enabledAddons, domain, subs)
+		cluster := buildClusterConfig(masterIP, masterUser, masterPassword, nodeName, domain, privateNet, addons)
+		writeClusterConfigFile(app, []interface{}{cluster}, outputPath)
+	})
+	form.AddButton("Cancel", func() { app.Stop() })
+	form.SetBorder(true).SetTitle(addonName + " Configuration").SetTitleAlign(tview.AlignLeft)
+	return form
+}
+
 func addGiteaSectionToForm(app *tview.Application, enabledAddons map[string]bool, domain, masterIP, masterUser, masterPassword, nodeName string, privateNet bool, outputPath string, onDone func()) *tview.Form {
 	giteaFields := []AddonFormField{
 		{Label: "POSTGRES_USER", Default: "gitea"},
 		{Label: "POSTGRES_PASSWORD", Default: "changeme", IsPassword: true},
 		{Label: "POSTGRES_DB", Default: "giteadb"},
 	}
-	form := tview.NewForm()
-	addSectionToForm(form, giteaFields)
-	form.AddButton("Generate", func() {
-		giteaSubs := map[string]string{
-			"${POSTGRES_USER}":     form.GetFormItemByLabel("POSTGRES_USER").(*tview.InputField).GetText(),
-			"${POSTGRES_PASSWORD}": form.GetFormItemByLabel("POSTGRES_PASSWORD").(*tview.InputField).GetText(),
-			"${POSTGRES_DB}":       form.GetFormItemByLabel("POSTGRES_DB").(*tview.InputField).GetText(),
-		}
-		addons := buildAddonsMap(enabledAddons, domain, giteaSubs)
-		cluster := buildClusterConfig(masterIP, masterUser, masterPassword, nodeName, domain, privateNet, addons)
-		writeClusterConfigFile(app, []interface{}{cluster}, outputPath)
-	})
-	form.AddButton("Cancel", func() { app.Stop() })
-	form.SetBorder(true).SetTitle("Gitea DB Configuration").SetTitleAlign(tview.AlignLeft)
-	return form
+	return addAddonConfigSectionToForm(
+		app,
+		"Gitea DB",
+		giteaFields,
+		enabledAddons,
+		domain, masterIP, masterUser, masterPassword, nodeName,
+		privateNet,
+		outputPath,
+		func(form *tview.Form) map[string]string {
+			return map[string]string{
+				"${POSTGRES_USER}":     form.GetFormItemByLabel("POSTGRES_USER").(*tview.InputField).GetText(),
+				"${POSTGRES_PASSWORD}": form.GetFormItemByLabel("POSTGRES_PASSWORD").(*tview.InputField).GetText(),
+				"${POSTGRES_DB}":       form.GetFormItemByLabel("POSTGRES_DB").(*tview.InputField).GetText(),
+			}
+		},
+		onDone,
+	)
 }
 
 func buildAddonCheckboxes(form *tview.Form) []*tview.Checkbox {
