@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	addons "github.com/argon-chat/k3sd/pkg/addons"
 	"github.com/rivo/tview"
 )
 
@@ -62,31 +63,30 @@ func buildAddonCheckboxes(form *tview.Form) []*tview.Checkbox {
 }
 
 func buildAddonsMap(enabledAddons map[string]bool, domain string, giteaSubs map[string]string) map[string]interface{} {
-	addons := make(map[string]interface{})
+	addonsMap := make(map[string]interface{})
 	for _, name := range addonList {
 		if !enabledAddons[name] {
 			continue
 		}
-		if name == "gitea" && giteaSubs != nil {
-			addons[name] = map[string]interface{}{
-				"enabled": true,
-				"subs":    giteaSubs,
-			}
-		} else if name == "gitea-ingress" || name == "cluster-issuer" {
-			addons[name] = map[string]interface{}{
-				"enabled": true,
-				"subs": map[string]string{
-					"${DOMAIN}": domain,
-				},
-			}
-		} else {
-			addons[name] = map[string]interface{}{
+		builder, ok := addons.AddonConfigBuilderRegistry[name]
+		if !ok {
+			addonsMap[name] = map[string]interface{}{
 				"enabled": true,
 				"subs":    map[string]string{},
 			}
+			continue
 		}
+		var subs map[string]string
+		if name == "gitea" && giteaSubs != nil {
+			subs = giteaSubs
+		} else if name == "gitea-ingress" || name == "cluster-issuer" {
+			subs = map[string]string{"${DOMAIN}": domain}
+		} else {
+			subs = map[string]string{}
+		}
+		addonsMap[name] = builder.BuildConfig(domain, subs)
 	}
-	return addons
+	return addonsMap
 }
 
 func buildClusterConfig(masterIP, masterUser, masterPassword, nodeName, domain string, privateNet bool, addons map[string]interface{}) map[string]interface{} {
@@ -111,7 +111,6 @@ func writeClusterConfigFile(app *tview.Application, clusters []interface{}, outp
 		app.SetRoot(modal, true)
 		return
 	}
-	// Close file and check error
 	defer func() { _ = f.Close() }()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
