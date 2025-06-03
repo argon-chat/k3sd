@@ -72,7 +72,7 @@ func buildKubeconfigPath(loggerId, nodeName string) string {
 func runBaseClusterSetup(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
 	baseCmds := append(baseClusterCommands(*cluster), additional...)
 	logger.Log("Connecting to cluster: %s", cluster.Address)
-	if err := clusterutils.ExecuteCommands(client, baseCmds, logger); err != nil {
+	if err := clusterutils.ExecuteCommands(client, baseCmds, cluster.Password, logger); err != nil {
 		return fmt.Errorf("exec master: %v", err)
 	}
 	markClusterDone(cluster)
@@ -138,7 +138,7 @@ func joinWorkerPrivateNet(cluster *types.Cluster, worker *types.Worker, client *
 		fmt.Sprintf("ssh %s@%s \"sudo apt update && sudo apt install -y curl\"", worker.User, worker.Address),
 		fmt.Sprintf("ssh %s@%s \"curl -sfL https://get.k3s.io | K3S_URL=https://%s:6443 K3S_TOKEN='%s' INSTALL_K3S_EXEC='--node-name %s' sh -\"", worker.User, worker.Address, cluster.Address, strings.TrimSpace(token), worker.NodeName),
 	}
-	if err := clusterutils.ExecuteCommands(client, joinCmds, logger); err != nil {
+	if err := clusterutils.ExecuteCommands(client, joinCmds, cluster.Password, logger); err != nil {
 		return fmt.Errorf("worker join %s: %v", worker.Address, err)
 	}
 	return nil
@@ -159,7 +159,7 @@ func joinWorkerPublicNet(cluster *types.Cluster, worker *types.Worker, logger *u
 		"sudo apt update && sudo apt install -y curl",
 		fmt.Sprintf("curl -sfL https://get.k3s.io | K3S_URL=https://%s:6443 K3S_TOKEN='%s' INSTALL_K3S_EXEC='--node-name %s' sh -", cluster.Address, strings.TrimSpace(token), worker.NodeName),
 	}
-	if err := clusterutils.ExecuteCommands(workerClient, joinCmds, logger); err != nil {
+	if err := clusterutils.ExecuteCommands(workerClient, joinCmds, worker.Password, logger); err != nil {
 		return fmt.Errorf("worker join %s: %v", worker.Address, err)
 	}
 	return nil
@@ -169,7 +169,7 @@ func baseClusterCommands(cluster types.Cluster) []string {
 	return []string{
 		"sudo apt-get update -y",
 		"sudo apt-get install curl wget zip unzip -y",
-		fmt.Sprintf("curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--disable traefik --node-name %s' K3S_KUBECONFIG_MODE=\"644\" sh -", cluster.NodeName),
+		fmt.Sprintf("sudo sh -c \"curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--disable traefik --node-name %s' K3S_KUBECONFIG_MODE=\"644\" sh -\"", cluster.NodeName),
 		"sleep 10",
 	}
 }
