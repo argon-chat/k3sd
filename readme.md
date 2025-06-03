@@ -18,6 +18,7 @@ K3SD is a modern, config-driven tool for creating, managing, and uninstalling K3
 10. [Build from Source](#build-from-source)
 11. [Project Roadmap](#project-roadmap)
 12. [Contributing](#contributing)
+13. [Extending the TUI: Adding New Forms and Inputs](#extending-the-tui-adding-new-forms-and-inputs)
 
 ---
 
@@ -264,6 +265,56 @@ Add a new entry to the `customAddons` map in your config file, specifying either
 - Use helpers in `pkg/clusterutils` for manifest/Helm operations.
 - Addons should be idempotent and log all actions.
 - Document any new config keys in the README.
+
+---
+
+## Extending the TUI: Adding New Forms and Inputs
+
+The TUI is designed to be modular and easily extensible. To add a new input field or a new form (e.g., for a new addon), follow these steps:
+
+### Adding a New Input Field to the Cluster Form
+
+1. **Edit the `clusterFields` array** in `cli/tui/generate.go`:
+   ```go
+   var clusterFields = []FieldDef{
+       {"Master node IP", "", false},
+       {"Master SSH user", "", false},
+       // ...
+       {"My New Field", "default-value", false}, // <-- Add your field here
+   }
+   ```
+2. **No further code changes are needed.** The field will automatically appear in the TUI and be included in the generated config.
+
+### Adding a New Addon Form (with custom inputs)
+
+1. **Define your addon fields** as a `[]FieldDef`:
+   ```go
+   var myAddonFields = []FieldDef{
+       {"MY_OPTION", "default", false},
+       {"MY_SECRET", "", true},
+   }
+   ```
+2. **Create a form function using the generic builder:**
+   ```go
+   func buildMyAddonForm(app *tview.Application, onBack func(), onDone func(subs map[string]string)) *tview.Form {
+       return buildAddonSubsForm(app, "MyAddon Configuration", myAddonFields, onBack, onDone)
+   }
+   ```
+3. **Add your addon to the `addonList` array**:
+   ```go
+   var addonList = []string{
+       "gitea", "myaddon", // ...
+   }
+   ```
+4. **Update the logic in `buildClusterForm`** to call your new form when your addon is selected (see how Gitea is handled for an example).
+
+### Guidelines
+- All field definitions are arrays at the top of `generate.go`.
+- Use the `FieldDef` struct for each field: `{Label, Default, IsPassword}`.
+- Use the `buildAddonSubsForm` helper for any new addon form.
+- No need to modify core logic—just add to arrays and call the generic builder.
+
+This approach keeps the code DRY, modular, and easy to maintain. For more advanced flows (multi-step forms, validation, etc.), follow the same pattern: define your fields, use the generic builder, and handle the result in the main flow.
 
 ---
 
