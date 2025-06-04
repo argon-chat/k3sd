@@ -1,5 +1,7 @@
 .idea
 .helm
 k3sd
+k3sd.exe
+clusters.generated.json
 kubeconfigs
 clusters.json

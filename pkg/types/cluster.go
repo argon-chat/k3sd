@@ -48,9 +48,12 @@ type ManifestConfig struct {
 //	Workers:     List of worker nodes
 //	Addons:      Map of built-in addon configs (e.g. gitea, cert-manager)
 //	CustomAddons: Map of user-defined custom addons
+//
+// Cluster represents a K3s cluster configuration, including master and worker nodes, domain, context, and optional addons.
 type Cluster struct {
 	Worker
 	Domain       string                       `json:"domain"`
+	Context      string                       `json:"context"`
 	PrivateNet   bool                         `json:"privateNet"`
 	Workers      []Worker                     `json:"workers"`
 	Addons       map[string]AddonConfig       `json:"addons,omitempty"`

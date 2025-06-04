@@ -21,10 +21,24 @@ func SaveKubeConfig(client *ssh.Client, cluster types.Cluster, nodeName string, 
 	kubeConfig = patchKubeConfigAddress(kubeConfig, cluster.Address)
 	kubeConfigPath := buildKubeConfigPath(logger.Id, nodeName)
 	logIfFileWriteErr(kubeConfigPath, kubeConfig, logger)
+
+	if cluster.Context != "" {
+		oldContext := getCurrentContextFromKubeconfig(kubeConfig)
+		clusterutils.RenameKubeconfigContext(kubeConfigPath, oldContext, cluster.Context, logger)
+	}
 }
 
 func patchKubeConfigAddress(kubeConfig, address string) string {
 	return strings.ReplaceAll(kubeConfig, "127.0.0.1", address)
+}
+
+func getCurrentContextFromKubeconfig(kubeConfig string) string {
+	for _, line := range strings.Split(kubeConfig, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "current-context:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "current-context:"))
+		}
+	}
+	return ""
 }
 
 func buildKubeConfigPath(loggerId, nodeName string) string {

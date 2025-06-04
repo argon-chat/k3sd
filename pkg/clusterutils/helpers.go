@@ -79,3 +79,13 @@ func ResolveYamlPath(filename string) string {
 	}
 	return filename
 }
+
+func RenameKubeconfigContext(kubeconfigPath, oldContext, newContext string, logger *utils.Logger) {
+	if oldContext == "" || newContext == "" || oldContext == newContext {
+		return
+	}
+	cmd := exec.Command("kubectl", "config", "--kubeconfig", kubeconfigPath, "rename-context", oldContext, newContext)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		logger.Log("Failed to rename kubeconfig context: %v, output: %s", err, string(out))
+	}
+}
