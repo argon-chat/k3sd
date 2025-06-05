@@ -1,35 +1,49 @@
 # K3SD - K3s Cluster Deployment Tool
 
-K3SD is a command-line tool for creating, managing, and uninstalling K3s Kubernetes clusters across multiple machines.
-It automates the deployment of K3s clusters with optional components like cert-manager, Traefik, Prometheus, Gitea, and
-Linkerd.
+K3SD is a modern, config-driven tool for creating, managing, and uninstalling K3s Kubernetes clusters across multiple machines. It supports fully modular, extensible cluster and addon configuration, and includes a TUI (text user interface) for easy config generation.
+
+---
+
+## Table of Contents
+
+1. [Features](#features)
+2. [Prerequisites](#prerequisites)
+3. [Installation](#installation)
+4. [Configuration](#configuration)
+5. [TUI Config Generator](#tui-config-generator)
+6. [Usage](#usage)
+7. [Addon System](#addon-system)
+8. [Custom Addons](#custom-addons)
+9. [Uninstalling Clusters](#uninstalling-clusters)
+10. [Build from Source](#build-from-source)
+11. [Project Roadmap](#project-roadmap)
+12. [Contributing](#contributing)
+13. [Extending the TUI: Adding New Forms and Inputs](#extending-the-tui-adding-new-forms-and-inputs)
+
+---
 
 ## Features
 
 - Deploy K3s clusters with multiple worker nodes via SSH
-- Cross-platform support: Linux (x86_64/arm64), macOS (Apple Silicon), and Windows (x86_64)
-- Install and configure optional components:
-  - cert-manager
-  - Traefik (HTTP/3 enabled, with custom values)
-  - Prometheus stack (via Helm)
-  - Gitea (with PostgreSQL support and ingress)
-  - Linkerd (including multi-cluster, with automated certificate management)
-- Generate and manage kubeconfig files for each node
+- Cross-platform: Linux, macOS, Windows
+- Fully config-driven: all cluster and addon options are set in a JSON config file
+- Built-in addons: cert-manager, Traefik, Prometheus, Gitea, Linkerd, ClusterIssuer, and more
+- Custom addon support: install any Helm chart or manifest via config
+- TUI (text UI) for interactive config generation
 - Clean uninstall of clusters
-- Display version information with `--version`
-- Verbose logging and atomic Helm operations supported
+- Per-node kubeconfig management
+- Verbose logging and atomic Helm operations
 
 ## Prerequisites
 
 - `kubectl` - [Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/)
-- `linkerd` - [Linkerd CLI](https://linkerd.io/2.18/getting-started/#step-1-install-the-cli) (required for Linkerd
-  installations)
-- `step` - [Certificate management tool](https://smallstep.com/docs/step-cli/installation/) (required for Linkerd)
+- `linkerd` - [Linkerd CLI](https://linkerd.io/2.18/getting-started/#step-1-install-the-cli) (for Linkerd addon)
+- `step` - [step CLI](https://smallstep.com/docs/step-cli/installation/) (for Linkerd certs)
 - `ssh` - SSH client for remote server access
 
 ## Installation
 
-Download the appropriate binary for your platform from the [Releases](https://github.com/argon-chat/k3sd/releases) page.
+Download the latest binary for your platform from the [Releases](https://github.com/argon-chat/k3sd/releases) page.
 
 ```bash
 # Example for Linux x86_64
@@ -41,45 +55,82 @@ sudo mv k3sd /usr/local/bin/
 
 ## Configuration
 
-Create a JSON configuration file for your clusters. Example:
+K3SD uses a single JSON file to describe all clusters and addons. Example:
 
-```jsonc
+```json
 [
   {
-    "address": "192.168.1.10",           // (string) IP address or hostname of the master node
-    "user": "root",                      // (string) SSH username for the master node
-    "password": "password",              // (string) SSH password for the master node
-    "nodeName": "master-1",              // (string) Kubernetes node name for the master
-    "labels": {                           // (object) Key-value labels for the master node
-      "node-role.kubernetes.io/control-plane": "true" // (string) Example label for control-plane
+    "address": "10.144.103.55",
+    "user": "ubuntu",
+    "password": "password123",
+    "nodeName": "master",
+    "labels": {
+      "label1": "value1"
     },
-    "domain": "example.com",             // (string) Domain name for cluster-issuer and Gitea ingress (required if using those features)
-    "gitea": {                            // (object) Gitea configuration (only needed if --gitea is used)
-      "pg": {                             // (object) PostgreSQL configuration for Gitea
-        "user": "gitea",                 // (string) PostgreSQL username for Gitea
-        "password": "gitea_password",     // (string) PostgreSQL password for Gitea
-        "db": "gitea_db"                  // (string) PostgreSQL database name for Gitea
-      }
-    },
-    "privateNet": false,                  // (boolean) If true, worker nodes are installed by connecting from the master node (using the master's network),
-                                           // rather than connecting to each worker directly from your local machine. Set to true if your workers are only
-                                           // reachable from the master node (e.g., in a private subnet or behind NAT). Set to false if all nodes are directly
-                                           // accessible via SSH from your local machine. This flag determines the installation method for worker nodes.
-    "workers": [                          // (array) List of worker node objects
+    "domain": "example.com",
+    "privateNet": false,
+    "workers": [
       {
-        "address": "192.168.1.11",       // (string) IP address or hostname of the worker node
-        "user": "root",                  // (string) SSH username for the worker node
-        "password": "password",          // (string) SSH password for the worker node
-        "nodeName": "worker-1",          // (string) Kubernetes node name for the worker
-        "labels": {                       // (object) Key-value labels for the worker node
-          "node-role.kubernetes.io/worker": "true" // (string) Example label for worker
-        },
-        "done": false                     // (boolean) Internal flag, should be false for new nodes
+        "address": "10.144.103.64",
+        "user": "ubuntu",
+        "password": "password123",
+        "nodeName": "worker1",
+        "labels": {},
+        "done": false
       }
-    ]
+    ],
+    "addons": {
+      "gitea": {
+        "enabled": true,
+        "subs": {
+          "${POSTGRES_USER}": "gitea",
+          "${POSTGRES_PASSWORD}": "changeme",
+          "${POSTGRES_DB}": "giteadb"
+        }
+      },
+      "gitea-ingress": {
+        "enabled": true,
+        "subs": { "${DOMAIN}": "example.com" }
+      },
+      "cert-manager": { "enabled": true },
+      "traefik": { "enabled": false },
+      "prometheus": { "enabled": false },
+      "cluster-issuer": { "enabled": false },
+      "linkerd": { "enabled": false },
+      "linkerd-mc": { "enabled": false }
+    },
+    "customAddons": {
+      "somePod": {
+        "enabled": false,
+        "helm": {
+          "chart": "mychart",
+          "repo": {
+            "name": "myrepo",
+            "url": "https://charts.example.com"
+          },
+          "version": "1.2.3",
+          "valuesFile": "./yamls/somepod-values.yaml",
+          "namespace": "default"
+        },
+        "manifest": {
+          "path": "./yamls/somepod.yaml",
+          "subs": { "KEY": "value" }
+        }
+      }
+    }
   }
 ]
 ```
+
+## TUI Config Generator
+
+K3SD includes a built-in TUI for interactively generating cluster configs. Run:
+
+```bash
+k3sd -generate
+```
+
+This will launch a form-based UI to enter master node info, select addons, and (if needed) configure addon variables. The resulting config is saved as a JSON file.
 
 ## Usage
 
@@ -95,32 +146,6 @@ k3sd --version
 k3sd --config-path=/path/to/clusters.json
 ```
 
-### Create a Cluster with Additional Components
-
-```bash
-k3sd --config-path=/path/to/clusters.json \
-  --cert-manager \
-  --traefik \
-  --cluster-issuer \
-  --prometheus \
-  --gitea \
-  --gitea-ingress \
-  --linkerd \
-  --linkerd-mc
-```
-
-### Install Linkerd
-
-```bash
-k3sd --config-path=/path/to/clusters.json --linkerd
-```
-
-### Install Linkerd with Multi-cluster Support
-
-```bash
-k3sd --config-path=/path/to/clusters.json --linkerd-mc
-```
-
 ### Uninstall a Cluster
 
 ```bash
@@ -132,19 +157,60 @@ k3sd --config-path=/path/to/clusters.json --uninstall
 | Option             | Description                                           |
 |--------------------|-------------------------------------------------------|
 | `--config-path`    | Path to clusters.json (required)                      |
-| `--yamls-path`      | Prefix path to all YAMLs for installing additional components. If not set, the program will look for a ./yamls directory or ~/.k3sd/yamls. |
-| `--cert-manager`   | Install cert-manager                                  |
-| `--traefik`        | Install Traefik with custom values                    |
-| `--cluster-issuer` | Apply ClusterIssuer YAML (requires domain in config)  |
-| `--gitea`          | Install Gitea (requires PostgreSQL configuration)     |
-| `--gitea-ingress`  | Apply Gitea Ingress (requires domain in config)       |
-| `--prometheus`     | Install Prometheus stack (via Helm)                   |
-| `--linkerd`        | Install Linkerd with automated certs                  |
-| `--linkerd-mc`     | Install Linkerd with multi-cluster support            |
+| `--yamls-path`     | Path prefix for YAMLs (default: ./yamls or ~/.k3sd/yamls) |
 | `--uninstall`      | Uninstall the cluster                                 |
 | `--version`        | Print the version and exit                            |
 | `-v`               | Enable verbose logging                                |
 | `--helm-atomic`    | Enable atomic Helm operations (rollback on failure)   |
+| `-generate`        | Launch the TUI config generator                       |
+
+All addon/component selection is now done via the config file, not CLI flags.
+
+## Addon System
+
+All built-in addons are enabled/configured via the `addons` map in your cluster config. Supported built-in addons:
+
+- `cert-manager`
+- `traefik`
+- `prometheus`
+- `gitea`
+- `gitea-ingress`
+- `cluster-issuer`
+- `linkerd`
+- `linkerd-mc`
+
+Each addon can be enabled/disabled and provided with variable substitutions via the `subs` map. See the config example above.
+
+## Custom Addons
+
+You can install any Helm chart or manifest by adding entries to the `customAddons` map in your config. Example:
+
+```json
+"customAddons": {
+  "myaddon": {
+    "enabled": true,
+    "helm": {
+      "chart": "mychart",
+      "repo": { "name": "myrepo", "url": "https://charts.example.com" },
+      "version": "1.2.3",
+      "valuesFile": "./yamls/myaddon-values.yaml",
+      "namespace": "default"
+    },
+    "manifest": {
+      "path": "./yamls/myaddon.yaml",
+      "subs": { "KEY": "value" }
+    }
+  }
+}
+```
+
+## Uninstalling Clusters
+
+To uninstall all clusters defined in your config:
+
+```bash
+k3sd --config-path=/path/to/clusters.json --uninstall
+```
 
 ## Build from Source
 
@@ -154,29 +220,19 @@ cd k3sd
 go build -ldflags "-s -w -X 'github.com/argon-chat/k3sd/utils.Version=<version>'" -o k3sd ./cli/main.go
 ```
 
-For smaller binaries, the build process now strips debug symbols by default. See the CI workflow for details.
-
-## Project Roadmap & Future Milestones
-
-
-The following table lists planned and completed features/milestones for the project. Status is updated as work progresses.
-
+## Project Roadmap
 
 | Feature / Milestone                                      | Status |
 |----------------------------------------------------------|--------|
 | Deploy K3s clusters with multiple worker nodes via SSH    | ✅     |
 | Cross-platform support (Linux, macOS, Windows)           | ✅     |
-| Install cert-manager                                     | ✅     |
-| Install Traefik (with custom values, HTTP/3)             | ✅     |
-| Install Prometheus stack (via Helm)                      | ✅     |
-| Install Gitea (with PostgreSQL and ingress)              | ✅     |
-| Install Linkerd (including multi-cluster, auto certs)    | ✅     |
-| Generate/manage kubeconfig files for each node           | ✅     |
+| Built-in addon system (config-driven)                    | ✅     |
+| Custom addon support (Helm/manifest)                     | ✅     |
+| TUI config generator                                     | ✅     |
 | Clean uninstall of clusters                              | ✅     |
-| Display version information                              | ✅     |
+| Per-node kubeconfig management                           | ✅     |
 | Verbose logging and atomic Helm operations               | ✅     |
 | Support for choosing CNI of choice                       | 🚧     |
-| Addon configuration with JSON instead of CLI flags       | 🚧     |
 | Add support for more service meshes (e.g., Istio)        | 🚧     |
 | Remember/apply config JSON diffs for future changes      | 🚧     |
 
@@ -184,71 +240,82 @@ The following table lists planned and completed features/milestones for the proj
 
 ## Contributing
 
+Contributions are welcome! To get started:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repo and create a feature branch.
+2. Make your changes (see below for addon guidelines).
+3. Run `go build`, `go vet`, and `golangci-lint run` to ensure code quality.
+4. Submit a pull request with a clear description.
 
-## Adding a New Addon
+### Adding a New Built-in Addon
 
-K3SD uses a unified, extensible addon system. All addons are registered in the `pkg/addons/addonRegistry.go` file and must have the following function signature:
-
-```go
-func MyAddon(cluster *types.Cluster, logger *utils.Logger)
-```
-
-### Example: Adding Gitea
-
-1. **Create the Addon Function**  
-   In `pkg/addons/gitea.go`:
+1. Create your addon logic in `pkg/addons/youraddon.go` as a function:
    ```go
-   func ApplyGiteaAddon(cluster *types.Cluster, logger *utils.Logger) {
-       if !utils.Flags[utils.FlagGitea] {
-           return
-       }
-       kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
-
-       // Example 1: Apply a YAML manifest (with substitutions)
-       substitutions := clusterutils.BuildSubstitutions(
-           "${POSTGRES_USER}", cluster.Gitea.Pg.Username,
-           "${POSTGRES_PASSWORD}", cluster.Gitea.Pg.Password,
-           "${POSTGRES_DB}", cluster.Gitea.Pg.DbName,
-       )
-       clusterutils.ApplyComponentYAML(
-           "gitea",                                 // name for logging
-           kubeconfig,                               // kubeconfig path
-           clusterutils.ResolveYamlPath("gitea.yaml"), // manifest path
-           logger,                                   // logger
-           substitutions,                            // map[string]string for variable substitution
-       )
-
-       // Example 2: Install a Helm chart
-       clusterutils.InstallHelmChart(
-           kubeconfig,                               // kubeconfig path
-           "gitea",                                 // release name
-           "default",                               // namespace
-           "gitea-charts",                          // repo name
-           "https://dl.gitea.io/charts/",           // repo URL
-           "gitea",                                 // chart name
-           "10.0.0",                                // chart version
-           "",                                      // values file path or leave empty
-           logger,                                   // logger
-       )
-
-       // Wait for deployment to be ready
-       clusterutils.WaitForDeploymentReady(kubeconfig, "gitea", "default", logger)
-   }
+   func ApplyYourAddon(cluster *types.Cluster, logger *utils.Logger) { /* ... */ }
    ```
+2. Register it in `pkg/addons/addonRegistry.go`.
+3. Add config keys and substitutions as needed (see other addons for examples).
 
-2. **Register the Addon**  
-   In `pkg/addons/addonRegistry.go`:
-   ```go
-   var AddonRegistry = []AddonFunc{
-       // ... other addons
-       ApplyGiteaAddon,
-   }
-   ```
+### Adding a Custom Addon (No Code Required)
+
+Add a new entry to the `customAddons` map in your config file, specifying either a Helm chart or manifest (or both). See the config example above.
 
 ### Guidelines
 
-- Use the provided helpers in `pkg/clusterutils` for manifest application, Helm, and readiness checks.
+- Use helpers in `pkg/clusterutils` for manifest/Helm operations.
 - Addons should be idempotent and log all actions.
-- Addons are invoked automatically if their corresponding CLI flag is set.
+- Document any new config keys in the README.
+
+---
+
+## Extending the TUI: Adding New Forms and Inputs
+
+The TUI is designed to be modular and easily extensible. To add a new input field or a new form (e.g., for a new addon), follow these steps:
+
+### Adding a New Input Field to the Cluster Form
+
+1. **Edit the `clusterFields` array** in `cli/tui/generate.go`:
+   ```go
+   var clusterFields = []FieldDef{
+       {"Master node IP", "", false},
+       {"Master SSH user", "", false},
+       // ...
+       {"My New Field", "default-value", false}, // <-- Add your field here
+   }
+   ```
+2. **No further code changes are needed.** The field will automatically appear in the TUI and be included in the generated config.
+
+### Adding a New Addon Form (with custom inputs)
+
+1. **Define your addon fields** as a `[]FieldDef`:
+   ```go
+   var myAddonFields = []FieldDef{
+       {"MY_OPTION", "default", false},
+       {"MY_SECRET", "", true},
+   }
+   ```
+2. **Create a form function using the generic builder:**
+   ```go
+   func buildMyAddonForm(app *tview.Application, onBack func(), onDone func(subs map[string]string)) *tview.Form {
+       return buildAddonSubsForm(app, "MyAddon Configuration", myAddonFields, onBack, onDone)
+   }
+   ```
+3. **Add your addon to the `addonList` array**:
+   ```go
+   var addonList = []string{
+       "gitea", "myaddon", // ...
+   }
+   ```
+4. **Update the logic in `buildClusterForm`** to call your new form when your addon is selected (see how Gitea is handled for an example).
+
+### Guidelines
+- All field definitions are arrays at the top of `generate.go`.
+- Use the `FieldDef` struct for each field: `{Label, Default, IsPassword}`.
+- Use the `buildAddonSubsForm` helper for any new addon form.
+- No need to modify core logic—just add to arrays and call the generic builder.
+
+This approach keeps the code DRY, modular, and easy to maintain. For more advanced flows (multi-step forms, validation, etc.), follow the same pattern: define your fields, use the generic builder, and handle the result in the main flow.
+
+---
+
+For questions or suggestions, open an issue or discussion on GitHub.

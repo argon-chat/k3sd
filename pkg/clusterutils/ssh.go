@@ -78,21 +78,22 @@ func SSHConnect(userName, password, host string) (*ssh.Client, error) {
 //
 //	client: SSH client.
 //	commands: List of shell commands to execute.
+//	password: Password for sudo commands (optional).
 //	logger: Logger for output.
 //
 // Returns:
 //
 //	Error if any command fails.
-func ExecuteCommands(client *ssh.Client, commands []string, logger *utils.Logger) error {
+func ExecuteCommands(client *ssh.Client, commands []string, password string, logger *utils.Logger) error {
 	for _, cmd := range commands {
-		if err := runCommand(client, cmd, logger); err != nil {
+		if err := runCommandWithSudoPassword(client, cmd, password, logger); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func runCommand(client *ssh.Client, cmd string, logger *utils.Logger) error {
+func runCommandWithSudoPassword(client *ssh.Client, cmd string, password string, logger *utils.Logger) error {
 	session, err := client.NewSession()
 	utils.LogIfError(logger, err, "failed to create session: %v")
 	if err != nil {
@@ -102,12 +103,34 @@ func runCommand(client *ssh.Client, cmd string, logger *utils.Logger) error {
 
 	stdout, _ := session.StdoutPipe()
 	stderr, _ := session.StderrPipe()
+	stdin, _ := session.StdinPipe()
 
 	go StreamOutput(stdout, false, logger)
 	go StreamOutput(stderr, true, logger)
 
 	logger.LogCmd("%s", cmd)
-	return session.Run(cmd)
+
+	words := strings.Fields(cmd)
+	hasSudo := false
+	for i, w := range words {
+		if w == "sudo" {
+			hasSudo = true
+			if i+1 >= len(words) || words[i+1] != "-S" {
+				words[i] = "sudo -S"
+			}
+			break
+		}
+	}
+	if hasSudo {
+		cmd = strings.Join(words, " ")
+		if err := session.Start(cmd); err != nil {
+			return err
+		}
+		fmt.Fprintln(stdin, password)
+		return session.Wait()
+	} else {
+		return session.Run(cmd)
+	}
 }
 
 func closeSSHSession(session *ssh.Session, logger *utils.Logger) {

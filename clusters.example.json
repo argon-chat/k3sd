@@ -10,13 +10,7 @@
     },
     "done": false,
     "domain": "example.com",
-    "gitea": {
-      "pg": {
-        "user": "user",
-        "password": "password123",
-        "db": "dbname"
-      }
-    },
+    "context": "k3sd",
     "privateNet": false,
     "workers": [
       {
@@ -27,6 +21,68 @@
         "labels": {},
         "done": false
       }
-    ]
+    ],
+    "addons": {
+      "gitea": {
+        "enabled": true,
+        "subs": {
+          "${POSTGRES_USER}": "gitea",
+          "${POSTGRES_PASSWORD}": "changeme",
+          "${POSTGRES_DB}": "giteadb"
+        }
+      },
+      "gitea-ingress": {
+        "enabled": true,
+        "subs": {
+          "${DOMAIN}": "example.com"
+        }
+      },
+      "cert-manager": {
+        "enabled": true
+      },
+      "traefik": {
+        "enabled": false,
+        "subs": {}
+      },
+      "prometheus": {
+        "enabled": false,
+        "subs": {}
+      },
+      "cluster-issuer": {
+        "enabled": false,
+        "subs": {
+          "${DOMAIN}": "example.com"
+        }
+      },
+      "linkerd": {
+        "enabled": false,
+        "subs": {}
+      },
+      "linkerd-mc": {
+        "enabled": false,
+        "subs": {}
+      }
+    },
+    "customAddons": {
+      "somePod": {
+        "enabled": false,
+        "helm": {
+          "chart": "mychart",
+          "repo": {
+            "name": "myrepo",
+            "url": "https://charts.example.com"
+          },
+          "version": "1.2.3",
+          "valuesFile": "./yamls/somepod-values.yaml",
+          "namespace": "default"
+        },
+        "manifest": {
+          "path": "./yamls/somepod.yaml",
+          "subs": {
+            "KEY": "value"
+          }
+        }
+      }
+    }
   }
 ]

@@ -6,37 +6,69 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-// ApplyGiteaAddon installs and configures the Gitea addon on the cluster if enabled by flags.
-// It applies the Gitea manifest, substitutes database credentials, and optionally applies ingress.
+func init() {
+	RegisterAddonConfigBuilder("gitea", AddonConfigBuilderFunc(func(domain string, subs map[string]string) map[string]interface{} {
+		if subs == nil {
+			subs = map[string]string{}
+		}
+		return map[string]interface{}{
+			"enabled": true,
+			"subs":    subs,
+		}
+	}))
+}
+
+// ApplyGiteaAddon installs and configures the Gitea addon on the cluster if enabled.
 //
 // Parameters:
 //
 //	cluster: The cluster to apply the addon to.
 //	logger: Logger for output.
 func ApplyGiteaAddon(cluster *types.Cluster, logger *utils.Logger) {
-	if !utils.Flags[utils.FlagGitea] {
+	addon, ok := cluster.Addons["gitea"]
+	if !ok || !addon.Enabled {
 		return
 	}
 	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
-	applyGitea(cluster, kubeconfig, logger)
+	applyGitea(cluster, kubeconfig, logger, &addon)
 }
 
-// applyGitea applies the Gitea manifest and waits for the deployment to be ready.
-func applyGitea(clusterObj *types.Cluster, kubeconfigPath string, logger *utils.Logger) {
-	substitutions := clusterutils.BuildSubstitutions(
-		"${POSTGRES_USER}", clusterObj.Gitea.Pg.Username,
-		"${POSTGRES_PASSWORD}", clusterObj.Gitea.Pg.Password,
-		"${POSTGRES_DB}", clusterObj.Gitea.Pg.DbName,
-	)
-	clusterutils.ApplyComponentYAML("gitea", kubeconfigPath, clusterutils.ResolveYamlPath("gitea.yaml"), logger, substitutions)
-	if utils.Flags[utils.FlagGiteaIngress] {
-		applyGiteaIngress(clusterObj, kubeconfigPath, logger)
+func applyGitea(clusterObj *types.Cluster, kubeconfigPath string, logger *utils.Logger, addon *types.AddonConfig) {
+	substitutions := addon.Subs
+	if substitutions == nil {
+		substitutions = make(map[string]string)
+	}
+	if substitutions["${POSTGRES_USER}"] == "" {
+		substitutions["${POSTGRES_USER}"] = "gitea"
+	}
+	if substitutions["${POSTGRES_PASSWORD}"] == "" {
+		substitutions["${POSTGRES_PASSWORD}"] = "changeme"
+	}
+	if substitutions["${POSTGRES_DB}"] == "" {
+		substitutions["${POSTGRES_DB}"] = "giteadb"
+	}
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("gitea.yaml")
+	}
+	clusterutils.ApplyComponentYAML("gitea", kubeconfigPath, manifestPath, logger, substitutions)
+	if ingressAddon, ok := clusterObj.Addons["gitea-ingress"]; ok && ingressAddon.Enabled {
+		applyGiteaIngress(clusterObj, kubeconfigPath, logger, &ingressAddon)
 	}
 	clusterutils.WaitForDeploymentReady(kubeconfigPath, "gitea", "default", logger)
 }
 
-// applyGiteaIngress applies the Gitea ingress manifest with domain substitutions.
-func applyGiteaIngress(clusterObj *types.Cluster, kubeconfigPath string, logger *utils.Logger) {
-	substitutions := clusterutils.BuildSubstitutions("${DOMAIN}", clusterObj.Domain, "DOMAIN", clusterObj.Domain)
-	clusterutils.ApplyComponentYAML("gitea-ingress", kubeconfigPath, clusterutils.ResolveYamlPath("gitea.ingress.yaml"), logger, substitutions)
+func applyGiteaIngress(clusterObj *types.Cluster, kubeconfigPath string, logger *utils.Logger, addon *types.AddonConfig) {
+	substitutions := addon.Subs
+	if substitutions == nil {
+		substitutions = make(map[string]string)
+	}
+	if substitutions["${DOMAIN}"] == "" {
+		substitutions["${DOMAIN}"] = clusterObj.Domain
+	}
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("gitea.ingress.yaml")
+	}
+	clusterutils.ApplyComponentYAML("gitea-ingress", kubeconfigPath, manifestPath, logger, substitutions)
 }

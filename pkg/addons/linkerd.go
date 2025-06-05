@@ -21,28 +21,29 @@ func runStepCertCreate(args []string, logger *utils.Logger) {
 	logger.Log("Command executed successfully")
 }
 
-// ApplyLinkerdAddon installs and configures Linkerd or Linkerd multicluster on the cluster if enabled by flags.
-// It sets up certificates, CRDs, and runs the Linkerd installation commands.
+// ApplyLinkerdAddon installs and configures Linkerd or Linkerd multicluster on the cluster if enabled.
 //
 // Parameters:
 //
 //	cluster: The cluster to apply the addon to.
 //	logger: Logger for output.
 func ApplyLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
-	multicluster := utils.Flags[utils.FlagLinkerdMC]
-	standard := utils.Flags[utils.FlagLinkerd]
+	linkerd, ok := cluster.Addons["linkerd"]
+	linkerdMC, okMC := cluster.Addons["linkerd-mc"]
+	multicluster := okMC && linkerdMC.Enabled
+	standard := ok && linkerd.Enabled
 	if !multicluster && !standard {
 		return
 	}
-	runLinkerdInstall(cluster, logger)
+	runLinkerdInstall(cluster, logger, multicluster)
 }
 
-func runLinkerdInstall(cluster *types.Cluster, logger *utils.Logger) {
+func runLinkerdInstall(cluster *types.Cluster, logger *utils.Logger, multicluster bool) {
 	dir, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
 	clusterutils.ApplyComponentYAML("gateway CRDs", kubeconfig, "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml", logger, nil)
 	runLinkerdCmd("check", []string{"--pre", "--kubeconfig", kubeconfig}, logger, kubeconfig, false)
 	setupLinkerdCertsAndCRDs(dir, kubeconfig, cluster, logger)
-	runLinkerdInstallCmd(dir, kubeconfig, cluster, logger, utils.Flags[utils.FlagLinkerdMC])
+	runLinkerdInstallCmd(dir, kubeconfig, cluster, logger, multicluster)
 }
 
 func getLinkerdPaths(loggerId, nodeName string) (string, string) {

@@ -11,13 +11,13 @@ import (
 
 func uninstallWorker(client *ssh.Client, worker types.Worker, clusterAddress string, logger *utils.Logger) error {
 	cmd := fmt.Sprintf("ssh %s@%s \"k3s-agent-uninstall.sh\"", worker.User, worker.Address)
-	err := clusterutils.ExecuteCommands(client, []string{cmd}, logger)
+	err := clusterutils.ExecuteCommands(client, []string{cmd}, worker.Password, logger)
 	utils.LogIfError(logger, err, "Error uninstalling worker on %s: %v", clusterAddress)
 	return err
 }
 
 func uninstallMaster(client *ssh.Client, clusterAddress string, logger *utils.Logger) error {
-	err := clusterutils.ExecuteCommands(client, []string{"k3s-uninstall.sh"}, logger)
+	err := clusterutils.ExecuteCommands(client, []string{"k3s-uninstall.sh"}, clusterAddress, logger)
 	utils.LogIfError(logger, err, "Error uninstalling master on %s: %v", clusterAddress)
 	return err
 }
