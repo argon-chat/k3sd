@@ -22,7 +22,9 @@ func main() {
 	if err != nil {
 		panic("failed to open database: " + err.Error())
 	}
+	// TODO: this really needs to be placed in a more appropriate location
 	db.DbCtx = ctx
+
 	if utils.VersionFlag {
 		fmt.Printf("K3SD version: %s\n", utils.Version)
 		os.Exit(0)
