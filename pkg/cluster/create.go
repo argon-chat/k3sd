@@ -46,7 +46,7 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 		}
 		linkerdMC, okMC := cluster.Addons["linkerd-mc"]
 		if okMC && linkerdMC.Enabled {
-			addons.LinkChannel <- &clusters[ci]
+			addons.LinkChannel = append(addons.LinkChannel, &clusters[ci])
 		}
 		k8s.LogFiles(logger)
 	}
