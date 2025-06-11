@@ -10,6 +10,8 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
+var LinkChannel = make(chan *types.Cluster, 50)
+
 func runStepCertCreate(args []string, logger *utils.Logger) {
 	cmd := exec.Command("step", args...)
 	outPipe, _ := cmd.StdoutPipe()
@@ -36,6 +38,26 @@ func ApplyLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
 		return
 	}
 	runLinkerdInstall(cluster, logger, multicluster)
+}
+
+func LinkClusters(cluster *types.Cluster, logger *utils.Logger) {
+	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
+	if len(cluster.LinksTo) == 0 {
+		logger.Log("No clusters to link.")
+	}
+	for _, link := range cluster.LinksTo {
+		args := []string{
+			"multicluster", "link",
+			"--set", "enableHeadlessServices=true",
+			"--log-level=debug",
+			fmt.Sprintf("--cluster-name=%s", cluster.Context),
+			fmt.Sprintf("--api-server-address=https://%s:6443", link),
+		}
+		cmd := exec.Command("linkerd", args...)
+		logger.Log("Linking to cluster %s with command: linkerd %v", link, args)
+		clusterutils.PipeAndApply(cmd, kubeconfig, logger)
+		logger.Log("Successfully linked to cluster %s", link)
+	}
 }
 
 func runLinkerdInstall(cluster *types.Cluster, logger *utils.Logger, multicluster bool) {
