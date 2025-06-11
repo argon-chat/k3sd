@@ -2,6 +2,7 @@ package addons
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path"
 
@@ -40,22 +41,30 @@ func ApplyLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
 	runLinkerdInstall(cluster, logger, multicluster)
 }
 
-func LinkClusters(cluster *types.Cluster, logger *utils.Logger) {
+func LinkClusters(cluster *types.Cluster, otherClusters *[]types.Cluster, logger *utils.Logger) {
 	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
 	if len(cluster.LinksTo) == 0 {
 		logger.Log("No links to other clusters defined for %s", cluster.NodeName)
 	}
 	for _, link := range cluster.LinksTo {
+		var otherCluster *types.Cluster
+		for _, c := range *otherClusters {
+			if c.Address == link {
+				otherCluster = &c
+				break
+			}
+		}
+		_, otherKubeConfig := getLinkerdPaths(logger.Id, otherCluster.NodeName)
 		args := []string{
-			"multicluster", "link",
+			"link",
+			"--kubeconfig", otherKubeConfig,
 			"--set", "enableHeadlessServices=true",
 			"--log-level=debug",
-			fmt.Sprintf("--cluster-name=%s", cluster.Context),
+			fmt.Sprintf("--cluster-name=%s", otherCluster.Context),
 			fmt.Sprintf("--api-server-address=https://%s:6443", link),
 		}
-		cmd := exec.Command("linkerd", args...)
-		logger.Log("Linking to cluster %s with command: linkerd %v", link, args)
-		clusterutils.PipeAndApply(cmd, kubeconfig, logger)
+		logger.Log("Linking to cluster %s with command: linkerd multicluster %v", link, args)
+		runLinkerdCmd("multicluster", args, logger, kubeconfig, true)
 		logger.Log("Successfully linked to cluster %s", link)
 	}
 }
@@ -117,11 +126,19 @@ func installCRDs(kubeconfig string, logger *utils.Logger) {
 }
 
 func createRootCerts(dir string, logger *utils.Logger) {
+	caCrt := path.Join(dir, "ca.crt")
+	caKey := path.Join(dir, "ca.key")
+	if _, errCrt := os.Stat(caCrt); errCrt == nil {
+		if _, errKey := os.Stat(caKey); errKey == nil {
+			logger.Log("Root CA cert and key already exist, skipping creation.")
+			return
+		}
+	}
 	args := []string{
 		"certificate", "create",
 		"identity.linkerd.cluster.local",
-		path.Join(dir, "ca.crt"),
-		path.Join(dir, "ca.key"),
+		caCrt,
+		caKey,
 		"--profile", "root-ca",
 		"--no-password", "--insecure", "--force", "--not-after", "438000h",
 	}
@@ -131,7 +148,7 @@ func createRootCerts(dir string, logger *utils.Logger) {
 func createIssuerCerts(dir string, cluster *types.Cluster, logger *utils.Logger) {
 	args := []string{
 		"certificate", "create",
-		fmt.Sprintf("identity.linkerd.%s", cluster.Domain),
+		"identity.linkerd.cluster.local",
 		path.Join(dir, fmt.Sprintf("%s-issuer.crt", cluster.NodeName)),
 		path.Join(dir, fmt.Sprintf("%s-issuer.key", cluster.NodeName)),
 		"--ca", path.Join(dir, "ca.crt"),
