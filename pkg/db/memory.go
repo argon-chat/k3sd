@@ -57,3 +57,19 @@ type ClusterRecord struct {
 	Version  int    `gorm:"index:idx_version" json:"version"`
 	Cluster  string `gorm:"type:json" json:"cluster"`
 }
+
+// TODO: create a function to retrieve the calculated latest cluster record for a given address and node name
+func deepMerge(dst, src map[string]interface{}) map[string]interface{} {
+	for k, v := range src {
+		if vMap, ok := v.(map[string]interface{}); ok {
+			if dstMap, ok := dst[k].(map[string]interface{}); ok {
+				dst[k] = deepMerge(dstMap, vMap)
+			} else {
+				dst[k] = deepMerge(make(map[string]interface{}), vMap)
+			}
+		} else {
+			dst[k] = v
+		}
+	}
+	return dst
+}
