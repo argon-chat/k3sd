@@ -12,10 +12,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"log"
 
 	"github.com/argon-chat/k3sd/cli/tui"
+	"github.com/argon-chat/k3sd/pkg/addons"
 	clusterpkg "github.com/argon-chat/k3sd/pkg/cluster"
 	clusterstorepkg "github.com/argon-chat/k3sd/pkg/clusterstore"
 	"github.com/argon-chat/k3sd/pkg/db"
@@ -86,6 +88,10 @@ func main() {
 		clusters, err = clusterpkg.CreateCluster(clusters, logger, []string{})
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
+		}
+		time.Sleep(1 * time.Minute)
+		for _, cluster := range addons.LinkChannel {
+			addons.LinkClusters(cluster, &clusters, logger)
 		}
 	}
 

@@ -3,6 +3,12 @@ package types
 import "fmt"
 
 // AddonConfig represents the configuration for a built-in addon.
+//
+// Fields:
+//
+//	Enabled: bool, whether the addon is enabled
+//	Path: string, optional path to a manifest or values file
+//	Subs: map[string]string, optional substitutions for templating
 type AddonConfig struct {
 	Enabled bool              `json:"enabled"`
 	Path    string            `json:"path,omitempty"`
@@ -10,6 +16,12 @@ type AddonConfig struct {
 }
 
 // CustomAddonConfig represents a user-defined custom addon.
+//
+// Fields:
+//
+//	Enabled: bool, whether the custom addon is enabled
+//	Helm: *HelmConfig, Helm chart configuration (optional)
+//	Manifest: *ManifestConfig, manifest configuration (optional)
 type CustomAddonConfig struct {
 	Enabled  bool            `json:"enabled"`
 	Helm     *HelmConfig     `json:"helm,omitempty"`
@@ -17,6 +29,14 @@ type CustomAddonConfig struct {
 }
 
 // HelmConfig holds Helm chart installation details for a custom addon.
+//
+// Fields:
+//
+//	Chart: string, Helm chart name
+//	Repo: HelmRepo, Helm repository details
+//	Version: string, chart version
+//	ValuesFile: string, path to values.yaml
+//	Namespace: string, Kubernetes namespace
 type HelmConfig struct {
 	Chart      string   `json:"chart"`
 	Repo       HelmRepo `json:"repo"`
@@ -26,36 +46,46 @@ type HelmConfig struct {
 }
 
 // HelmRepo holds Helm repository details.
+//
+// Fields:
+//
+//	Name: string, repository name
+//	URL: string, repository URL
 type HelmRepo struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
 }
 
 // ManifestConfig holds manifest installation details for a custom addon.
+//
+// Fields:
+//
+//	Path: string, path to manifest file
+//	Subs: map[string]string, substitutions for templating
 type ManifestConfig struct {
 	Path string            `json:"path"`
 	Subs map[string]string `json:"subs,omitempty"`
 }
 
-// Cluster represents a K3s cluster configuration, including master and worker nodes, domain, and optional Gitea config.
+// Cluster represents a K3s cluster configuration, including master and worker nodes, domain, and optional addons.
 //
 // Fields:
 //
-//	Worker:      Embedded master node configuration (inherits Worker fields)
-//	Domain:      Domain for cluster-issuer and ingress
-//	Gitea:       Gitea configuration (see Gitea struct)
-//	PrivateNet:  If true, workers are installed from master
-//	Workers:     List of worker nodes
-//	Addons:      Map of built-in addon configs (e.g. gitea, cert-manager)
-//	CustomAddons: Map of user-defined custom addons
-//
-// Cluster represents a K3s cluster configuration, including master and worker nodes, domain, context, and optional addons.
+//	Worker: Worker, embedded master node configuration
+//	Domain: string, domain for cluster-issuer and ingress
+//	Context: string, kubeconfig context name
+//	PrivateNet: bool, if true, workers are installed from master
+//	Workers: []Worker, list of worker nodes
+//	LinksTo: []string, list of clusters to link for multicluster
+//	Addons: map[string]AddonConfig, built-in addon configs
+//	CustomAddons: map[string]CustomAddonConfig, user-defined custom addons
 type Cluster struct {
 	Worker
 	Domain       string                       `json:"domain"`
 	Context      string                       `json:"context"`
 	PrivateNet   bool                         `json:"privateNet"`
 	Workers      []Worker                     `json:"workers"`
+	LinksTo      []string                     `json:"linksTo,omitempty"`
 	Addons       map[string]AddonConfig       `json:"addons,omitempty"`
 	CustomAddons map[string]CustomAddonConfig `json:"customAddons,omitempty"`
 }
@@ -64,12 +94,12 @@ type Cluster struct {
 //
 // Fields:
 //
-//	Address:   IP or hostname
-//	User:      SSH username
-//	Password:  SSH password
-//	NodeName:  Kubernetes node name
-//	Labels:    Node labels
-//	Done:      Internal flag for install status
+//	Address: string, IP or hostname
+//	User: string, SSH username
+//	Password: string, SSH password
+//	NodeName: string, Kubernetes node name
+//	Labels: map[string]string, node labels
+//	Done: bool, internal flag for install status
 type Worker struct {
 	Address  string            `json:"address"`
 	User     string            `json:"user"`
@@ -81,9 +111,13 @@ type Worker struct {
 
 // GetLabels returns a comma-separated string of labels for the worker.
 //
+// Parameters:
+//
+//	(worker): the Worker receiver
+//
 // Returns:
 //
-//	string: Comma-separated key=value pairs for all labels.
+//	string: comma-separated key=value pairs for all labels
 func (worker *Worker) GetLabels() string {
 	labels := ""
 	for k, v := range worker.Labels {
