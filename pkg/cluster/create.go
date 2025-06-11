@@ -44,6 +44,10 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 		if err := setupWorkerNodes(&clusters[ci], client, logger); err != nil {
 			return nil, err
 		}
+		linkerdMC, okMC := cluster.Addons["linkerd-mc"]
+		if okMC && linkerdMC.Enabled {
+			addons.LinkChannel <- &clusters[ci]
+		}
 		k8s.LogFiles(logger)
 	}
 	return clusters, nil
