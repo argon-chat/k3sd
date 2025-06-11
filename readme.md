@@ -19,6 +19,7 @@ K3SD is a modern, config-driven tool for creating, managing, and uninstalling K3
 11. [Project Roadmap](#project-roadmap)
 12. [Contributing](#contributing)
 13. [Extending the TUI: Adding New Forms and Inputs](#extending-the-tui-adding-new-forms-and-inputs)
+14. [Linkerd Multicluster Linking](#linkerd-multicluster-linking)
 
 ---
 
@@ -318,4 +319,30 @@ This approach keeps the code DRY, modular, and easy to maintain. For more advanc
 
 ---
 
-For questions or suggestions, open an issue or discussion on GitHub.
+## Linkerd Multicluster Linking
+
+K3SD now supports automated Linkerd multicluster linking. If you enable both `linkerd` and `linkerd-mc` addons and specify a `linksTo` array in your cluster config, K3SD will automatically link your clusters using the correct kubeconfigs and Linkerd CLI commands.
+
+**Example cluster config:**
+
+```json
+{
+  "context": "cluster-1",
+  "nodeName": "cluster-1-master",
+  ...
+  "addons": {
+    "linkerd": { "enabled": true },
+    "linkerd-mc": { "enabled": true }
+  },
+  "linksTo": ["cluster-2-ip-address", "cluster-3-ip-address"]
+}
+```
+
+**How it works:**
+- For each entry in `linksTo`, K3SD runs:
+  ```
+  linkerd multicluster link --set "enableHeadlessServices=true" --log-level="debug" --cluster-name=<context> --api-server-address=https://<cluster>:6443 | kubectl apply -f -
+  ```
+- This enables seamless multicluster service mesh federation with Linkerd.
+
+---
