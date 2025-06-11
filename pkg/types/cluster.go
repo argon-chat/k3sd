@@ -58,6 +58,7 @@ type Cluster struct {
 	Workers      []Worker                     `json:"workers"`
 	Addons       map[string]AddonConfig       `json:"addons,omitempty"`
 	CustomAddons map[string]CustomAddonConfig `json:"customAddons,omitempty"`
+	LinksTo      []string                     `json:"linksTo,omitempty"`
 }
 
 // Worker represents a node in the cluster (master or worker).
