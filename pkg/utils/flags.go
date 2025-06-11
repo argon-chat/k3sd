@@ -21,6 +21,8 @@ var (
 	YamlsPath string
 	// GenerateFlag indicates whether to launch the interactive TUI to generate a cluster config.
 	GenerateFlag bool
+	// DBPath is the path to the sqlite database file.
+	DBPath string
 )
 
 // boolFlagDef defines a boolean flag for command-line parsing.
@@ -42,6 +44,7 @@ func ParseFlags() {
 	verbose := flag.Bool("v", false, "Enable verbose stdout logging")
 	helmAtomic := flag.Bool("helm-atomic", false, "Enable --atomic for all Helm operations (rollback on failure)")
 	generateFlag := flag.Bool("generate", false, "Launch interactive TUI to generate a cluster config")
+	dbPath := flag.String("db-path", "", "Path to the k3sd sqlite database file (default: ~/.k3sd/k3sd.db)")
 
 	flag.Parse()
 
@@ -51,6 +54,7 @@ func ParseFlags() {
 	HelmAtomic = *helmAtomic
 	YamlsPath = *yamlsPath
 	GenerateFlag = *generateFlag
+	DBPath = *dbPath
 
 	if *configPath != "" {
 		ConfigPath = *configPath

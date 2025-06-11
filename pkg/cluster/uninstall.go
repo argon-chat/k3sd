@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
+	"github.com/argon-chat/k3sd/pkg/db"
 	"github.com/argon-chat/k3sd/pkg/types"
 	"github.com/argon-chat/k3sd/pkg/utils"
 	"golang.org/x/crypto/ssh"
@@ -35,6 +36,10 @@ func uninstallMaster(client *ssh.Client, clusterAddress string, logger *utils.Lo
 //	Updated list of clusters and error if any step fails.
 func UninstallCluster(clusters []types.Cluster, logger *utils.Logger) ([]types.Cluster, error) {
 	for ci, cluster := range clusters {
+		err := db.DeleteClusterRecords(&cluster)
+		if err != nil {
+			return nil, fmt.Errorf("error deleting cluster records for %s: %v", cluster.Address, err)
+		}
 		client, err := clusterutils.SSHConnect(cluster.User, cluster.Password, cluster.Address)
 		if err != nil {
 			return nil, fmt.Errorf("error connecting to cluster %s: %v", cluster.Address, err)

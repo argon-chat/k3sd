@@ -5,3 +5,4 @@ k3sd.exe
 clusters.generated.json
 kubeconfigs
 clusters.json
+*.db

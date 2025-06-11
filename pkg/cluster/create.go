@@ -6,6 +6,7 @@ import (
 
 	"github.com/argon-chat/k3sd/pkg/addons"
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
+	"github.com/argon-chat/k3sd/pkg/db"
 	k8s "github.com/argon-chat/k3sd/pkg/k8s"
 	"github.com/argon-chat/k3sd/pkg/types"
 	"github.com/argon-chat/k3sd/pkg/utils"
@@ -27,6 +28,10 @@ import (
 //	Updated list of clusters and error if any step fails.
 func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []string) ([]types.Cluster, error) {
 	for ci, cluster := range clusters {
+		err := db.InsertCluster(&cluster)
+		if err != nil {
+			return nil, fmt.Errorf("error inserting cluster %s: %v", cluster.Address, err)
+		}
 		client, err := clusterutils.SSHConnect(cluster.User, cluster.Password, cluster.Address)
 		if err != nil {
 			return nil, err
