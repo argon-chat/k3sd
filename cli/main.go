@@ -11,12 +11,18 @@ import (
 	"github.com/argon-chat/k3sd/cli/tui"
 	clusterpkg "github.com/argon-chat/k3sd/pkg/cluster"
 	clusterstorepkg "github.com/argon-chat/k3sd/pkg/clusterstore"
+	"github.com/argon-chat/k3sd/pkg/db"
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
 func main() {
 	utils.ParseFlags()
 
+	ctx, err := db.OpenGormDB(db.GetDBPath())
+	if err != nil {
+		panic("failed to open database: " + err.Error())
+	}
+	db.DbCtx = ctx
 	if utils.VersionFlag {
 		fmt.Printf("K3SD version: %s\n", utils.Version)
 		os.Exit(0)
