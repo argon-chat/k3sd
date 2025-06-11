@@ -16,6 +16,7 @@ import (
 	"log"
 
 	"github.com/argon-chat/k3sd/cli/tui"
+	"github.com/argon-chat/k3sd/pkg/addons"
 	clusterpkg "github.com/argon-chat/k3sd/pkg/cluster"
 	clusterstorepkg "github.com/argon-chat/k3sd/pkg/clusterstore"
 	"github.com/argon-chat/k3sd/pkg/db"
@@ -86,6 +87,9 @@ func main() {
 		clusters, err = clusterpkg.CreateCluster(clusters, logger, []string{})
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
+		}
+		for cluster := range addons.LinkChannel {
+			addons.LinkClusters(cluster, logger)
 		}
 	}
 
