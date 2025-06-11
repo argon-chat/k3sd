@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"log"
 
@@ -88,8 +89,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
 		}
+		time.Sleep(1 * time.Minute)
 		for _, cluster := range addons.LinkChannel {
-			addons.LinkClusters(cluster, logger)
+			addons.LinkClusters(cluster, &clusters, logger)
 		}
 	}
 
