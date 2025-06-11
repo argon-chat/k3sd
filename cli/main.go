@@ -88,7 +88,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to create clusters: %v", err)
 		}
-		for cluster := range addons.LinkChannel {
+		for _, cluster := range addons.LinkChannel {
 			addons.LinkClusters(cluster, logger)
 		}
 	}
