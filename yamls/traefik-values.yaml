@@ -72,6 +72,7 @@ metadata:
   labels:
     app.kubernetes.io/instance: traefik
     app.kubernetes.io/name: traefik-dashboard
+    mirror.linkerd.io/exported: 'true'
 spec:
   type: ClusterIP
   ports:
