@@ -43,7 +43,7 @@ func ApplyLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
 func LinkClusters(cluster *types.Cluster, logger *utils.Logger) {
 	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
 	if len(cluster.LinksTo) == 0 {
-		logger.Log("No clusters to link.")
+		logger.Log("No links to other clusters defined for %s", cluster.NodeName)
 	}
 	for _, link := range cluster.LinksTo {
 		args := []string{
