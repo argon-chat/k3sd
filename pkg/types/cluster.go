@@ -76,18 +76,18 @@ type ManifestConfig struct {
 //	Context: string, kubeconfig context name
 //	PrivateNet: bool, if true, workers are installed from master
 //	Workers: []Worker, list of worker nodes
+//	LinksTo: []string, list of clusters to link for multicluster
 //	Addons: map[string]AddonConfig, built-in addon configs
 //	CustomAddons: map[string]CustomAddonConfig, user-defined custom addons
-//	LinksTo: []string, list of clusters to link for multicluster
 type Cluster struct {
 	Worker
 	Domain       string                       `json:"domain"`
 	Context      string                       `json:"context"`
 	PrivateNet   bool                         `json:"privateNet"`
 	Workers      []Worker                     `json:"workers"`
+	LinksTo      []string                     `json:"linksTo,omitempty"`
 	Addons       map[string]AddonConfig       `json:"addons,omitempty"`
 	CustomAddons map[string]CustomAddonConfig `json:"customAddons,omitempty"`
-	LinksTo      []string                     `json:"linksTo,omitempty"`
 }
 
 // Worker represents a node in the cluster (master or worker).
