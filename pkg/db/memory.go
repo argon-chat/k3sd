@@ -27,6 +27,12 @@ func OpenGormDB(path string) (*gorm.DB, error) {
 }
 
 func InsertCluster(cluster *types.Cluster) error {
+	var maxVersion int
+	DbCtx.Model(&ClusterRecord{}).
+		Where("address = ? AND node_name = ?", cluster.Address, cluster.NodeName).
+		Select("COALESCE(MAX(version), 0)").
+		Scan(&maxVersion)
+
 	b, err := json.Marshal(cluster)
 	if err != nil {
 		return err
@@ -34,6 +40,7 @@ func InsertCluster(cluster *types.Cluster) error {
 	rec := &ClusterRecord{
 		Address:  cluster.Address,
 		NodeName: cluster.NodeName,
+		Version:  maxVersion + 1,
 		Cluster:  string(b),
 	}
 	return DbCtx.Create(rec).Error
@@ -44,8 +51,9 @@ func DeleteClusterRecords(cluster *types.Cluster) error {
 }
 
 type ClusterRecord struct {
-	ID       uint   `gorm:"primaryKey;index:idx_address_nodename_id" json:"id"`
-	Address  string `gorm:"index:idx_address_nodename_id" json:"address"`
-	NodeName string `gorm:"index:idx_address_nodename_id" json:"node_name"`
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	Address  string `gorm:"index:idx_address" json:"address"`
+	NodeName string `gorm:"index:idx_nodename" json:"node_name"`
+	Version  int    `gorm:"index:idx_version" json:"version"`
 	Cluster  string `gorm:"type:json" json:"cluster"`
 }
