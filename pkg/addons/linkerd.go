@@ -10,7 +10,7 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-var LinkChannel = make(chan *types.Cluster, 50)
+var LinkChannel = []*types.Cluster{}
 
 func runStepCertCreate(args []string, logger *utils.Logger) {
 	cmd := exec.Command("step", args...)
