@@ -17,10 +17,10 @@ type AddonFunc func(*types.Cluster, *utils.Logger)
 //
 // Each function in this list applies a specific built-in addon to a cluster.
 var AddonRegistry = []AddonFunc{
+	ApplyLinkerdAddon,
 	ApplyCertManagerAddon,
 	ApplyTraefikAddon,
 	ApplyClusterIssuerAddon,
 	ApplyGiteaAddon,
 	ApplyPrometheusAddon,
-	ApplyLinkerdAddon,
 }

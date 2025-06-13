@@ -71,7 +71,7 @@ func LinkClusters(cluster *types.Cluster, otherClusters *[]types.Cluster, logger
 
 func runLinkerdInstall(cluster *types.Cluster, logger *utils.Logger, multicluster bool) {
 	dir, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
-	clusterutils.ApplyComponentYAML("gateway CRDs", kubeconfig, "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml", logger, nil)
+	// clusterutils.ApplyComponentYAML("gateway CRDs", kubeconfig, "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml", logger, nil)
 	runLinkerdCmd("check", []string{"--pre", "--kubeconfig", kubeconfig}, logger, kubeconfig, false)
 	setupLinkerdCertsAndCRDs(dir, kubeconfig, cluster, logger)
 	runLinkerdInstallCmd(dir, kubeconfig, cluster, logger, multicluster)
