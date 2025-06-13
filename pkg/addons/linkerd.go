@@ -75,6 +75,7 @@ func runLinkerdInstall(cluster *types.Cluster, logger *utils.Logger, multicluste
 	runLinkerdCmd("check", []string{"--pre", "--kubeconfig", kubeconfig}, logger, kubeconfig, false)
 	setupLinkerdCertsAndCRDs(dir, kubeconfig, cluster, logger)
 	runLinkerdInstallCmd(dir, kubeconfig, cluster, logger, multicluster)
+	updateCRDs(kubeconfig, logger)
 }
 
 func getLinkerdPaths(loggerId, nodeName string) (string, string) {
@@ -118,6 +119,10 @@ func runLinkerdCmd(cmd string, args []string, logger *utils.Logger, kubeconfig s
 	} else {
 		clusterutils.PipeAndLog(c, logger)
 	}
+}
+
+func updateCRDs(kubeconfig string, logger *utils.Logger) {
+	runLinkerdCmd("upgrade", []string{"--crds", "--kubeconfig", kubeconfig}, logger, kubeconfig, true)
 }
 
 func installCRDs(kubeconfig string, logger *utils.Logger) {
