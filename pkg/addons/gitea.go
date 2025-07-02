@@ -72,3 +72,29 @@ func applyGiteaIngress(clusterObj *types.Cluster, kubeconfigPath string, logger 
 	}
 	clusterutils.ApplyComponentYAML("gitea-ingress", kubeconfigPath, manifestPath, logger, substitutions)
 }
+
+// DeleteGiteaAddon uninstalls the Gitea addon and its ingress from the cluster.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeleteGiteaAddon(cluster *types.Cluster, logger *utils.Logger) {
+	addon, ok := cluster.Addons["gitea"]
+	if !ok {
+		return
+	}
+	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("gitea.yaml")
+	}
+	clusterutils.DeleteComponentYAML("gitea", kubeconfig, manifestPath, logger, addon.Subs)
+	if ingressAddon, ok := cluster.Addons["gitea-ingress"]; ok {
+		manifestPath := ingressAddon.Path
+		if manifestPath == "" {
+			manifestPath = clusterutils.ResolveYamlPath("gitea.ingress.yaml")
+		}
+		clusterutils.DeleteComponentYAML("gitea-ingress", kubeconfig, manifestPath, logger, ingressAddon.Subs)
+	}
+}
