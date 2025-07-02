@@ -19,7 +19,7 @@ func init() {
 	}))
 }
 
-// ApplyClusterIssuerAddon applies the ClusterIssuer YAML to the cluster if enabled.
+// ApplyClusterIssuerAddon installs and configures the ClusterIssuer addon on the cluster if enabled.
 //
 // Parameters:
 //
@@ -41,4 +41,23 @@ func applyClusterIssuer(kubeconfigPath string, logger *utils.Logger, addon *type
 		manifestPath = clusterutils.ResolveYamlPath("clusterissuer.yaml")
 	}
 	clusterutils.ApplyComponentYAML("clusterissuer", kubeconfigPath, manifestPath, logger, substitutions)
+}
+
+// DeleteClusterIssuerAddon uninstalls the ClusterIssuer addon from the cluster.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeleteClusterIssuerAddon(cluster *types.Cluster, logger *utils.Logger) {
+	addon, ok := cluster.Addons["cluster-issuer"]
+	if !ok {
+		return
+	}
+	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("clusterissuer.yaml")
+	}
+	clusterutils.DeleteComponentYAML("clusterissuer", kubeconfig, manifestPath, logger, addon.Subs)
 }
