@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/argon-chat/k3sd/pkg/addons"
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
@@ -25,24 +26,24 @@ import (
 //
 // Returns:
 //
-//	Updated list of clusters and error if any step fails.
-func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []string) ([]types.Cluster, error) {
+//	Updated list of clusters
+func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []string) []types.Cluster {
 	for ci, cluster := range clusters {
 		err := db.InsertCluster(&cluster)
 		if err != nil {
-			return nil, fmt.Errorf("error inserting cluster %s: %v", cluster.Address, err)
+			logger.LogErr("error inserting cluster %s: %v", cluster.Address, err)
 		}
 		client, err := clusterutils.SSHConnect(cluster.User, cluster.Password, cluster.Address)
 		if err != nil {
-			return nil, err
+			logger.LogErr("error connecting to cluster %s: %v", cluster.Address, err)
 		}
 		defer closeSSHClient(client)
 
 		if err := handleMasterNode(&clusters[ci], client, logger, additional); err != nil {
-			return nil, err
+			logger.LogErr("error handling master node %s: %v", cluster.Address, err)
 		}
 		if err := setupWorkerNodes(&clusters[ci], client, logger); err != nil {
-			return nil, err
+			logger.LogErr("error setting up worker nodes: %v", err)
 		}
 		linkerdMC, okMC := cluster.Addons["linkerd-mc"]
 		if okMC && linkerdMC.Enabled {
@@ -50,7 +51,12 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 		}
 		k8s.LogFiles(logger)
 	}
-	return clusters, nil
+
+	time.Sleep(1 * time.Minute)
+	for _, cluster := range addons.LinkChannel {
+		addons.LinkClusters(cluster, &clusters, logger)
+	}
+	return clusters
 }
 
 func closeSSHClient(client *ssh.Client) {
