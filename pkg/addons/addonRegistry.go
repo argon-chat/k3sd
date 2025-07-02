@@ -5,22 +5,39 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-// AddonFunc is the function signature for an addon application function.
-//
-// Parameters:
-//
-//	cluster: The cluster to apply the addon to.
-//	logger: Logger for output.
-type AddonFunc func(*types.Cluster, *utils.Logger)
-
-// AddonRegistry is the list of all registered addon application functions.
-//
-// Each function in this list applies a specific built-in addon to a cluster.
-var AddonRegistry = []AddonFunc{
-	ApplyLinkerdAddon,
-	ApplyCertManagerAddon,
-	ApplyTraefikAddon,
-	ApplyClusterIssuerAddon,
-	ApplyGiteaAddon,
-	ApplyPrometheusAddon,
+type AddonMigration struct {
+	Up   func(*types.Cluster, *utils.Logger)
+	Down func(*types.Cluster, *utils.Logger)
 }
+
+// AddonRegistry maps addon names to their migration logic (Up/Down).
+var AddonRegistry = map[string]AddonMigration{
+	"cert-manager": {
+		Up:   ApplyCertManagerAddon,
+		Down: DeleteCertManagerAddon,
+	},
+	"traefik": {
+		Up:   ApplyTraefikAddon,
+		Down: DeleteTraefikAddon, // to be implemented
+	},
+	"prometheus": {
+		Up:   ApplyPrometheusAddon,
+		Down: DeletePrometheusAddon, // to be implemented
+	},
+	"cluster-issuer": {
+		Up:   ApplyClusterIssuerAddon,
+		Down: DeleteClusterIssuerAddon, // to be implemented
+	},
+	"gitea": {
+		Up:   ApplyGiteaAddon,
+		Down: DeleteGiteaAddon, // to be implemented
+	},
+	"linkerd": {
+		Up:   ApplyLinkerdAddon,
+		Down: DeleteLinkerdAddon, // to be implemented
+	},
+}
+
+// --- Down (uninstall) stubs for each addon ---
+func DeletePrometheusAddon(cluster *types.Cluster, logger *utils.Logger) {}
+func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger)    {}
