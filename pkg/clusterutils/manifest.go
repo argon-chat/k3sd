@@ -177,3 +177,51 @@ func applyManifestWithKubectl(kubeconfigPath, manifestPath string, logger *utils
 	logger.Log("kubectl apply output:\n%s", string(out))
 	return nil
 }
+
+// DeleteComponentYAML deletes a YAML manifest for a given component from the cluster.
+// It logs the operation and any errors encountered.
+func DeleteComponentYAML(component, kubeconfigPath, manifest string, logger *utils.Logger, substitutions map[string]string) {
+	logger.Log("Deleting %s...", component)
+	if err := DeleteYAMLManifest(kubeconfigPath, manifest, logger, substitutions); err != nil {
+		logger.Log("%s delete error: %v", component, err)
+	}
+}
+
+// DeleteYAMLManifest deletes the resources defined in a manifest from the cluster using kubectl delete -f.
+func DeleteYAMLManifest(kubeconfigPath, manifestPathOrURL string, logger *utils.Logger, substitutions map[string]string) error {
+	data, err := GetManifestData(manifestPathOrURL)
+	if err != nil {
+		logger.LogErr("Failed to read manifest from %s: %v\n", manifestPathOrURL, err)
+		return err
+	}
+	data = ApplySubstitutions(data, substitutions)
+	tmpFile, err := os.CreateTemp("", "k3sd-manifest-*.yaml")
+	if err != nil {
+		logger.LogErr("Failed to create temp file for manifest: %v", err)
+		return err
+	}
+	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			logger.LogErr("Failed to close temp manifest file: %v", err)
+		}
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			logger.LogErr("Failed to remove temp manifest file: %v", err)
+		}
+	}()
+	if _, err := tmpFile.Write(data); err != nil {
+		logger.LogErr("Failed to write manifest to temp file: %v", err)
+		return err
+	}
+	if err := tmpFile.Sync(); err != nil {
+		logger.LogErr("Failed to sync temp manifest file: %v", err)
+		return err
+	}
+	cmd := exec.Command("kubectl", "--kubeconfig", kubeconfigPath, "delete", "-f", tmpFile.Name())
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.LogErr("kubectl delete failed: %v\nOutput: %s", err, string(out))
+		return err
+	}
+	logger.Log("kubectl delete output:\n%s", string(out))
+	return nil
+}
