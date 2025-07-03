@@ -27,7 +27,7 @@ func OpenGormDB(path string) (*gorm.DB, error) {
 	return db, nil
 }
 
-func InsertCluster(cluster *types.Cluster) error {
+func InsertCluster(cluster *types.Cluster) (int, error) {
 	var maxVersion int
 	DbCtx.Model(&ClusterRecord{}).
 		Where("address = ? AND node_name = ?", cluster.Address, cluster.NodeName).
@@ -36,7 +36,7 @@ func InsertCluster(cluster *types.Cluster) error {
 
 	b, err := json.Marshal(cluster)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	rec := &ClusterRecord{
 		Address:  cluster.Address,
@@ -44,7 +44,26 @@ func InsertCluster(cluster *types.Cluster) error {
 		Version:  maxVersion + 1,
 		Cluster:  string(b),
 	}
-	return DbCtx.Create(rec).Error
+	return maxVersion, DbCtx.Create(rec).Error
+}
+
+func GetClusterVersion(cluster *types.Cluster, version int) (*types.Cluster, error) {
+	if version < 1 {
+		return nil, nil
+	}
+	var record ClusterRecord
+	err := DbCtx.Where("address = ? AND node_name = ? AND version = ?", cluster.Address, cluster.NodeName, version).
+		First(&record).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var result types.Cluster
+	err = json.Unmarshal([]byte(record.Cluster), &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func DeleteClusterRecords(cluster *types.Cluster) error {
