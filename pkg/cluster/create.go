@@ -66,9 +66,6 @@ func closeSSHClient(client *ssh.Client) {
 }
 
 func handleMasterNode(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
-	if cluster.Done {
-		return nil
-	}
 	return setupMasterNode(cluster, client, logger, additional)
 }
 
@@ -86,6 +83,9 @@ func buildKubeconfigPath(loggerId, nodeName string) string {
 }
 
 func runBaseClusterSetup(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
+	if cluster.Done {
+		return nil
+	}
 	baseCmds := append(baseClusterCommands(*cluster), additional...)
 	logger.Log("Connecting to cluster: %s", cluster.Address)
 	if err := clusterutils.ExecuteCommands(client, baseCmds, cluster.Password, logger); err != nil {
@@ -130,9 +130,6 @@ func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
 
 func setupWorkerNodes(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger) error {
 	return clusterutils.ForEachWorker(cluster.Workers, func(worker *types.Worker) error {
-		if worker.Done {
-			return nil
-		}
 		return joinAndLabelWorker(cluster, worker, client, logger)
 	})
 }
@@ -160,6 +157,9 @@ func getK3sToken(client *ssh.Client, cluster *types.Cluster, logger *utils.Logge
 }
 
 func joinWorker(cluster *types.Cluster, worker *types.Worker, client *ssh.Client, logger *utils.Logger, token string) error {
+	if worker.Done {
+		return nil
+	}
 	if cluster.PrivateNet {
 		return joinWorkerPrivateNet(cluster, worker, client, logger, token)
 	}
