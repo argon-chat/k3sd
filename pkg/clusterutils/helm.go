@@ -85,3 +85,26 @@ func helmUpgradeInstall(args []string, logger *utils.Logger) error {
 	logger.Log("Helm upgrade/install output: %s", string(out))
 	return nil
 }
+
+// UninstallHelmRelease uninstalls a Helm release from the given namespace.
+//
+// Parameters:
+//
+//	kubeconfigPath: Path to the kubeconfig file.
+//	releaseName: Name of the Helm release to uninstall.
+//	namespace: Kubernetes namespace of the release.
+//	logger: Logger for output.
+//
+// Returns:
+//
+//	Error if the Helm uninstall command fails.
+func UninstallHelmRelease(kubeconfigPath, releaseName, namespace string, logger *utils.Logger) error {
+	cmd := exec.Command("helm", "uninstall", releaseName, "--namespace", namespace, "--kubeconfig", kubeconfigPath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.LogErr("Helm uninstall failed: %v\nOutput: %s", err, string(out))
+		return err
+	}
+	logger.Log("Helm uninstall output: %s", string(out))
+	return nil
+}
