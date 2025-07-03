@@ -1,7 +1,10 @@
 package addons
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -49,13 +52,26 @@ func LinkClusters(cluster *types.Cluster, otherClusters *[]types.Cluster, logger
 	for _, link := range cluster.LinksTo {
 		var otherCluster *types.Cluster
 		for _, c := range *otherClusters {
-			if c.Address == link {
+			if c.Context == link {
 				otherCluster = &c
 				break
 			}
 		}
+		shouldUnlink := false
 		if otherCluster == nil {
-			logger.LogErr("Could not find cluster with address %s to link from %s", link, cluster.NodeName)
+			logger.LogErr("Could not find cluster with context %s to link from %s, will attempt to unlink if previously linked", link, cluster.NodeName)
+			shouldUnlink = true
+		} else {
+			linkerd, ok := otherCluster.Addons["linkerd"]
+			linkerdMC, okMC := otherCluster.Addons["linkerd-mc"]
+			enabled := (ok && linkerd.Enabled) || (okMC && linkerdMC.Enabled)
+			if !enabled {
+				logger.LogErr("Cluster %s found but does not have linkerd/linkerd-mc enabled, will attempt to unlink", otherCluster.NodeName)
+				shouldUnlink = true
+			}
+		}
+		if shouldUnlink {
+			UnlinkLinkerdGateway(cluster, link, logger)
 			continue
 		}
 		_, otherKubeConfig := getLinkerdPaths(logger.Id, otherCluster.NodeName)
@@ -65,7 +81,7 @@ func LinkClusters(cluster *types.Cluster, otherClusters *[]types.Cluster, logger
 			"--set", "enableHeadlessServices=true",
 			"--log-level=debug",
 			fmt.Sprintf("--cluster-name=%s", otherCluster.Context),
-			fmt.Sprintf("--api-server-address=https://%s:6443", link),
+			fmt.Sprintf("--api-server-address=https://%s:6443", otherCluster.Address),
 		}
 		logger.Log("Linking to cluster %s with command: linkerd multicluster %v", link, args)
 		runLinkerdCmd("multicluster", args, logger, kubeconfig, true)
@@ -169,6 +185,38 @@ func createIssuerCerts(dir string, cluster *types.Cluster, logger *utils.Logger)
 	runStepCertCreate(args, logger)
 }
 
+// UnlinkLinkerdGateway unlinks a specific multicluster gateway by cluster name or by IP address for the given cluster using the linkerd CLI.
+// If gatewayClusterName is an IP address, it will search cluster.LinksTo for a matching address and use the corresponding context name if found.
+func UnlinkLinkerdGateway(cluster *types.Cluster, gatewayClusterName string, logger *utils.Logger) {
+	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
+
+	clusterNameToUnlink := gatewayClusterName
+	if net.ParseIP(gatewayClusterName) != nil {
+		return
+	}
+
+	unlinkCmd := exec.Command("linkerd", "multicluster", "unlink", "--cluster-name", clusterNameToUnlink, "--kubeconfig", kubeconfig)
+	clusterutils.PipeAndDelete(unlinkCmd, kubeconfig, logger)
+}
+
+func unlinkAllLinkerdGateways(cluster *types.Cluster, logger *utils.Logger) {
+	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
+	cmd := exec.Command("linkerd", "multicluster", "gateways", "-o", "json", "--kubeconfig", kubeconfig)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err == nil {
+		var gateways []struct {
+			ClusterName string `json:"clusterName"`
+		}
+		if jsonErr := json.Unmarshal(out.Bytes(), &gateways); jsonErr == nil {
+			for _, gw := range gateways {
+				UnlinkLinkerdGateway(cluster, gw.ClusterName, logger)
+			}
+		}
+	}
+}
+
 // DeleteLinkerdAddon uninstalls Linkerd and Linkerd multicluster from the cluster using the linkerd CLI.
 //
 // Parameters:
@@ -177,10 +225,13 @@ func createIssuerCerts(dir string, cluster *types.Cluster, logger *utils.Logger)
 //	logger: Logger for output.
 func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
 	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
+
+	unlinkAllLinkerdGateways(cluster, logger)
+
 	if _, ok := cluster.Addons["linkerd-mc"]; ok {
 		cmd := exec.Command("linkerd", "multicluster", "uninstall", "--kubeconfig", kubeconfig)
-		clusterutils.PipeAndApply(cmd, kubeconfig, logger)
+		clusterutils.PipeAndDelete(cmd, kubeconfig, logger)
 	}
 	cmd := exec.Command("linkerd", "uninstall", "--kubeconfig", kubeconfig)
-	clusterutils.PipeAndApply(cmd, kubeconfig, logger)
+	clusterutils.PipeAndDelete(cmd, kubeconfig, logger)
 }
