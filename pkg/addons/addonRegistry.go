@@ -5,15 +5,6 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-type AddonMigrationStatus int
-
-const (
-	ToBeApplied AddonMigrationStatus = iota
-	Applied
-	Changed
-	Deleted
-)
-
 type AddonMigration struct {
 	Up   func(*types.Cluster, *utils.Logger)
 	Down func(*types.Cluster, *utils.Logger)
