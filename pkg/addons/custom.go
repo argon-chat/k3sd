@@ -6,42 +6,37 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-// ApplyCustomAddons installs all enabled custom addons (manifest or Helm) for the given cluster.
+// ApplyCustomAddons installs all enabled custom addons (manifest or Helm) for the given cluster
+// or uninstalls them if they are not enabled.
 //
 // Parameters:
 //
 //	cluster: The cluster to apply custom addons to.
 //	logger: Logger for output.
-func ApplyCustomAddons(cluster *types.Cluster, logger *utils.Logger) {
+func ApplyCustomAddons(cluster *types.Cluster, logger *utils.Logger, version *types.Cluster) {
 	for name, addon := range cluster.CustomAddons {
-		if !addon.Enabled {
-			continue
-		}
-		if addon.Manifest != nil {
-			applyCustomManifestAddon(name, cluster, addon.Manifest, logger)
-		}
-		if addon.Helm != nil {
-			applyCustomHelmAddon(name, cluster, addon.Helm, logger)
-		}
-	}
-}
-
-// DeleteCustomAddons uninstalls all custom addons (manifest or Helm) for the given cluster.
-//
-// Parameters:
-//
-//	cluster: The cluster to uninstall custom addons from.
-//	logger: Logger for output.
-func DeleteCustomAddons(cluster *types.Cluster, logger *utils.Logger) {
-	for name, addon := range cluster.CustomAddons {
-		if addon.Enabled {
-			continue
-		}
-		if addon.Manifest != nil {
-			deleteCustomManifestAddon(name, cluster, addon.Manifest, logger)
-		}
-		if addon.Helm != nil {
-			deleteCustomHelmAddon(name, cluster, addon.Helm, logger)
+		migrationStatus := clusterutils.ComputeAddonMigrationStatus(name, cluster, version, true)
+		switch migrationStatus {
+		case clusterutils.AddonApply:
+			logger.Log("Applying custom addon '%s' for cluster '%s'", name, cluster.Address)
+			if addon.Manifest != nil {
+				applyCustomManifestAddon(name, cluster, addon.Manifest, logger)
+			}
+			if addon.Helm != nil {
+				applyCustomHelmAddon(name, cluster, addon.Helm, logger)
+			}
+			break
+		case clusterutils.AddonDelete:
+			logger.Log("Deleting custom addon '%s' for cluster '%s'", name, cluster.Address)
+			if addon.Manifest != nil {
+				deleteCustomManifestAddon(name, cluster, addon.Manifest, logger)
+			}
+			if addon.Helm != nil {
+				deleteCustomHelmAddon(name, cluster, addon.Helm, logger)
+			}
+			break
+		case clusterutils.AddonNoop:
+			break
 		}
 	}
 }
