@@ -164,3 +164,37 @@ func createIssuerCerts(dir string, cluster *types.Cluster, logger *utils.Logger)
 	}
 	runStepCertCreate(args, logger)
 }
+
+// DeleteLinkerdAddon uninstalls Linkerd and Linkerd multicluster from the cluster using the linkerd CLI.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
+	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
+	if mc, ok := cluster.Addons["linkerd-mc"]; ok && mc.Enabled {
+		cmd := exec.Command("linkerd", "multicluster", "uninstall", "--kubeconfig", kubeconfig, "|", "kubectl", "--kubeconfig", kubeconfig, "delete", "-f", "-")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			logger.LogErr("Linkerd multicluster uninstall failed: %v\nOutput: %s", err, string(out))
+		} else {
+			logger.Log("Linkerd multicluster uninstall output: %s", string(out))
+		}
+	}
+	cmd := exec.Command("linkerd", "uninstall", "--kubeconfig", kubeconfig)
+	pipe, _ := cmd.StdoutPipe()
+	if err := cmd.Start(); err != nil {
+		logger.LogErr("Linkerd uninstall command failed to start: %v", err)
+		return
+	}
+	kubectlCmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "delete", "-f", "-")
+	kubectlCmd.Stdin = pipe
+	out, err := kubectlCmd.CombinedOutput()
+	if err != nil {
+		logger.LogErr("Linkerd uninstall failed: %v\nOutput: %s", err, string(out))
+	} else {
+		logger.Log("Linkerd uninstall output: %s", string(out))
+	}
+	_ = cmd.Wait()
+}
