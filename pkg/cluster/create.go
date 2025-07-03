@@ -121,8 +121,21 @@ func applyOptionalComponents(cluster *types.Cluster, version int, logger *utils.
 				migration.Down(cluster, logger)
 			}
 		} else {
-			_, _ = oldVersion.Addons[name]
-			// TODO
+			oldAddon, oldOk := oldVersion.Addons[name]
+			if oldOk && !ok {
+				migration.Down(cluster, logger)
+				continue
+			}
+			if oldOk && ok && oldAddon.Enabled == addon.Enabled {
+				continue
+			}
+			if ok {
+				if addon.Enabled {
+					migration.Up(cluster, logger)
+				} else {
+					migration.Down(cluster, logger)
+				}
+			}
 		}
 	}
 
