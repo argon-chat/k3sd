@@ -112,45 +112,22 @@ func applyOptionalComponents(cluster *types.Cluster, version int, logger *utils.
 		return
 	}
 	for name, migration := range addons.AddonRegistry {
-		addon, ok := cluster.Addons[name]
+		migrationStatus := clusterutils.ComputeAddonMigrationStatus(name, cluster, oldVersion, false)
 
-		if oldVersion == nil {
-			if ok && addon.Enabled {
-				migration.Up(cluster, logger)
-			} else {
-				migration.Down(cluster, logger)
-			}
-		} else {
-			oldAddon, oldOk := oldVersion.Addons[name]
-			if oldOk && !ok {
-				migration.Down(cluster, logger)
-				continue
-			}
-			if oldOk && ok && oldAddon.Enabled == addon.Enabled {
-				continue
-			}
-			if ok {
-				if addon.Enabled {
-					migration.Up(cluster, logger)
-				} else {
-					migration.Down(cluster, logger)
-				}
-			}
+		switch migrationStatus {
+		case clusterutils.AddonApply:
+			logger.Log("Applying addon %s for cluster %s", name, cluster.Address)
+			migration.Up(cluster, logger)
+			break
+		case clusterutils.AddonDelete:
+			logger.Log("Deleting addon %s for cluster %s", name, cluster.Address)
+			migration.Down(cluster, logger)
+			break
+		case clusterutils.AddonNoop:
+			break
 		}
 	}
-
-	//hasEnabled := false
-	//hasDisabled := false
-	//for _, custom := range cluster.CustomAddons {
-	//	hasEnabled = hasEnabled || (custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
-	//	hasDisabled = hasDisabled || (!custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
-	//}
-	//if hasEnabled {
-	addons.ApplyCustomAddons(cluster, logger)
-	//}
-	//if hasDisabled {
-	addons.DeleteCustomAddons(cluster, logger)
-	//}
+	addons.ApplyCustomAddons(cluster, logger, oldVersion)
 }
 
 func setupWorkerNodes(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger) error {
