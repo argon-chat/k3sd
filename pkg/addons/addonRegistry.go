@@ -37,6 +37,3 @@ var AddonRegistry = map[string]AddonMigration{
 		Down: DeleteLinkerdAddon, // to be implemented
 	},
 }
-
-// --- Down (uninstall) stubs for each addon ---
-func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {}
