@@ -2,13 +2,14 @@ package cluster
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/argon-chat/k3sd/pkg/addons"
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
 	"github.com/argon-chat/k3sd/pkg/db"
 	k8s "github.com/argon-chat/k3sd/pkg/k8s"
 	"github.com/argon-chat/k3sd/pkg/types"
 	"github.com/argon-chat/k3sd/pkg/utils"
-	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -112,16 +113,21 @@ func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
 			migration.Down(cluster, logger)
 		}
 	}
+
+	hasEnabled := false
+	hasDisabled := false
 	for _, custom := range cluster.CustomAddons {
-		if custom.Enabled {
-			if custom.Manifest != nil || custom.Helm != nil {
-				addons.ApplyCustomAddons(cluster, logger)
-			}
-		} else {
-			if custom.Manifest != nil || custom.Helm != nil {
-				addons.DeleteCustomAddons(cluster, logger)
-			}
+		if custom.Enabled && (custom.Manifest != nil || custom.Helm != nil) {
+			hasEnabled = true
+		} else if !custom.Enabled && (custom.Manifest != nil || custom.Helm != nil) {
+			hasDisabled = true
 		}
+	}
+	if hasEnabled {
+		addons.ApplyCustomAddons(cluster, logger)
+	}
+	if hasDisabled {
+		addons.DeleteCustomAddons(cluster, logger)
 	}
 }
 
