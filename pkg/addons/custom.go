@@ -34,6 +34,9 @@ func ApplyCustomAddons(cluster *types.Cluster, logger *utils.Logger) {
 //	logger: Logger for output.
 func DeleteCustomAddons(cluster *types.Cluster, logger *utils.Logger) {
 	for name, addon := range cluster.CustomAddons {
+		if addon.Enabled {
+			continue
+		}
 		if addon.Manifest != nil {
 			deleteCustomManifestAddon(name, cluster, addon.Manifest, logger)
 		}
