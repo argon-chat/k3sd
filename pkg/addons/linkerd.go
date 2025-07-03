@@ -54,6 +54,10 @@ func LinkClusters(cluster *types.Cluster, otherClusters *[]types.Cluster, logger
 				break
 			}
 		}
+		if otherCluster == nil {
+			logger.LogErr("Could not find cluster with address %s to link from %s", link, cluster.NodeName)
+			continue
+		}
 		_, otherKubeConfig := getLinkerdPaths(logger.Id, otherCluster.NodeName)
 		args := []string{
 			"link",
