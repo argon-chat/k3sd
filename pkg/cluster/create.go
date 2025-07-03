@@ -52,6 +52,10 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 		k8s.LogFiles(logger)
 	}
 
+	for _, cluster := range clusters {
+		applyOptionalComponents(&cluster, logger)
+	}
+
 	time.Sleep(1 * time.Minute)
 	for _, cluster := range addons.LinkChannel {
 		addons.LinkClusters(cluster, &clusters, logger)
@@ -76,7 +80,6 @@ func setupMasterNode(cluster *types.Cluster, client *ssh.Client, logger *utils.L
 	}
 	kubeconfigPath := buildKubeconfigPath(logger.Id, cluster.NodeName)
 	labelMasterNode(cluster, kubeconfigPath, logger)
-	applyOptionalComponents(cluster, logger)
 	return nil
 }
 
@@ -104,10 +107,25 @@ func labelMasterNode(cluster *types.Cluster, kubeconfigPath string, logger *util
 }
 
 func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
-	for i := range addons.AddonRegistry {
-		addons.AddonRegistry[i](cluster, logger)
+	for name, migration := range addons.AddonRegistry {
+		addon, ok := cluster.Addons[name]
+		if ok && addon.Enabled {
+			migration.Up(cluster, logger)
+		} else {
+			migration.Down(cluster, logger)
+		}
 	}
-	addons.ApplyCustomAddons(cluster, logger)
+	for _, custom := range cluster.CustomAddons {
+		if custom.Enabled {
+			if custom.Manifest != nil || custom.Helm != nil {
+				addons.ApplyCustomAddons(cluster, logger)
+			}
+		} else {
+			if custom.Manifest != nil || custom.Helm != nil {
+				addons.DeleteCustomAddons(cluster, logger)
+			}
+		}
+	}
 }
 
 func setupWorkerNodes(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger) error {
