@@ -18,22 +18,22 @@ var AddonRegistry = map[string]AddonMigration{
 	},
 	"traefik": {
 		Up:   ApplyTraefikAddon,
-		Down: DeleteTraefikAddon, // to be implemented
+		Down: DeleteTraefikAddon,
 	},
 	"prometheus": {
 		Up:   ApplyPrometheusAddon,
-		Down: DeletePrometheusAddon, // to be implemented
+		Down: DeletePrometheusAddon,
 	},
 	"cluster-issuer": {
 		Up:   ApplyClusterIssuerAddon,
-		Down: DeleteClusterIssuerAddon, // to be implemented
+		Down: DeleteClusterIssuerAddon,
 	},
 	"gitea": {
 		Up:   ApplyGiteaAddon,
-		Down: DeleteGiteaAddon, // to be implemented
+		Down: DeleteGiteaAddon,
 	},
 	"linkerd": {
 		Up:   ApplyLinkerdAddon,
-		Down: DeleteLinkerdAddon, // to be implemented
+		Down: DeleteLinkerdAddon,
 	},
 }
