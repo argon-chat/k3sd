@@ -204,6 +204,7 @@ func createIssuerCerts(dir string, cluster *types.Cluster, logger *utils.Logger)
 // UnlinkLinkerdGateway unlinks a specific multicluster gateway by cluster name or by IP address for the given cluster using the linkerd CLI.
 // If gatewayClusterName is an IP address, it will search cluster.LinksTo for a matching address and use the corresponding context name if found.
 func UnlinkLinkerdGateway(cluster *types.Cluster, gatewayClusterName string, logger *utils.Logger) {
+	logger.Log("Unlinking Linkerd gateway for cluster %s with name %s", cluster.NodeName, gatewayClusterName)
 	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
 
 	clusterNameToUnlink := gatewayClusterName
@@ -259,8 +260,11 @@ func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
 
 	if _, ok := cluster.Addons["linkerd-mc"]; ok {
 		cmd := exec.Command("linkerd", "multicluster", "uninstall", "--kubeconfig", kubeconfig)
+		logger.Log("Uninstalling linkerd multicluster on %s", cluster.NodeName)
 		clusterutils.PipeAndDelete(cmd, kubeconfig, logger)
 	}
+
 	cmd := exec.Command("linkerd", "uninstall", "--kubeconfig", kubeconfig)
+	logger.Log("Uninstalling linkerd on %s", cluster.NodeName)
 	clusterutils.PipeAndDelete(cmd, kubeconfig, logger)
 }
