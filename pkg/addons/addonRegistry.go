@@ -39,5 +39,4 @@ var AddonRegistry = map[string]AddonMigration{
 }
 
 // --- Down (uninstall) stubs for each addon ---
-func DeletePrometheusAddon(cluster *types.Cluster, logger *utils.Logger) {}
-func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger)    {}
+func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {}
