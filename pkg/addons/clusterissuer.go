@@ -6,19 +6,6 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-func init() {
-	RegisterAddonConfigBuilder("cluster-issuer", AddonConfigBuilderFunc(func(domain string, subs map[string]string) map[string]interface{} {
-		if subs == nil {
-			subs = map[string]string{}
-		}
-		subs["${DOMAIN}"] = domain
-		return map[string]interface{}{
-			"enabled": true,
-			"subs":    subs,
-		}
-	}))
-}
-
 // ApplyClusterIssuerAddon installs and configures the ClusterIssuer addon on the cluster if enabled.
 //
 // Parameters:

@@ -6,18 +6,6 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-func init() {
-	RegisterAddonConfigBuilder("gitea", AddonConfigBuilderFunc(func(domain string, subs map[string]string) map[string]interface{} {
-		if subs == nil {
-			subs = map[string]string{}
-		}
-		return map[string]interface{}{
-			"enabled": true,
-			"subs":    subs,
-		}
-	}))
-}
-
 // ApplyGiteaAddon installs and configures the Gitea addon on the cluster if enabled.
 //
 // Parameters:
