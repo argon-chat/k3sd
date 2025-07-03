@@ -74,6 +74,22 @@ func LinkClusters(cluster *types.Cluster, otherClusters *[]types.Cluster, logger
 			UnlinkLinkerdGateway(cluster, link, logger)
 			continue
 		}
+
+		alreadyLinked := false
+		gateways, err := getCurrentLinkerdGateways(cluster, logger)
+		if err == nil {
+			for _, gw := range gateways {
+				if gw.ClusterName == otherCluster.Context {
+					alreadyLinked = true
+					break
+				}
+			}
+		}
+		if alreadyLinked {
+			logger.Log("Cluster %s is already linked to %s, skipping link operation", cluster.NodeName, otherCluster.Context)
+			continue
+		}
+
 		_, otherKubeConfig := getLinkerdPaths(logger.Id, otherCluster.NodeName)
 		args := []string{
 			"link",
@@ -199,21 +215,34 @@ func UnlinkLinkerdGateway(cluster *types.Cluster, gatewayClusterName string, log
 	clusterutils.PipeAndDelete(unlinkCmd, kubeconfig, logger)
 }
 
-func unlinkAllLinkerdGateways(cluster *types.Cluster, logger *utils.Logger) {
+type LinkerdGateway struct {
+	ClusterName string `json:"clusterName"`
+}
+
+func getCurrentLinkerdGateways(cluster *types.Cluster, logger *utils.Logger) ([]LinkerdGateway, error) {
 	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
 	cmd := exec.Command("linkerd", "multicluster", "gateways", "-o", "json", "--kubeconfig", kubeconfig)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
-	if err == nil {
-		var gateways []struct {
-			ClusterName string `json:"clusterName"`
-		}
-		if jsonErr := json.Unmarshal(out.Bytes(), &gateways); jsonErr == nil {
-			for _, gw := range gateways {
-				UnlinkLinkerdGateway(cluster, gw.ClusterName, logger)
-			}
-		}
+	if err != nil {
+		return nil, err
+	}
+	var gateways []LinkerdGateway
+	if jsonErr := json.Unmarshal(out.Bytes(), &gateways); jsonErr != nil {
+		return nil, jsonErr
+	}
+	return gateways, nil
+}
+
+func unlinkAllLinkerdGateways(cluster *types.Cluster, logger *utils.Logger) {
+	gateways, err := getCurrentLinkerdGateways(cluster, logger)
+	if err != nil {
+		logger.LogErr("Failed to get current Linkerd gateways: %v", err)
+		return
+	}
+	for _, gw := range gateways {
+		UnlinkLinkerdGateway(cluster, gw.ClusterName, logger)
 	}
 }
 
