@@ -177,7 +177,7 @@ func createIssuerCerts(dir string, cluster *types.Cluster, logger *utils.Logger)
 //	logger: Logger for output.
 func DeleteLinkerdAddon(cluster *types.Cluster, logger *utils.Logger) {
 	_, kubeconfig := getLinkerdPaths(logger.Id, cluster.NodeName)
-	if mc, ok := cluster.Addons["linkerd-mc"]; ok && mc.Enabled {
+	if _, ok := cluster.Addons["linkerd-mc"]; ok {
 		cmd := exec.Command("linkerd", "multicluster", "uninstall", "--kubeconfig", kubeconfig)
 		clusterutils.PipeAndApply(cmd, kubeconfig, logger)
 	}
