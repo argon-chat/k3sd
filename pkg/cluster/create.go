@@ -117,11 +117,8 @@ func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
 	hasEnabled := false
 	hasDisabled := false
 	for _, custom := range cluster.CustomAddons {
-		if custom.Enabled && (custom.Manifest != nil || custom.Helm != nil) {
-			hasEnabled = true
-		} else if !custom.Enabled && (custom.Manifest != nil || custom.Helm != nil) {
-			hasDisabled = true
-		}
+		hasEnabled = hasEnabled || (custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
+		hasDisabled = hasDisabled || (!custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
 	}
 	if hasEnabled {
 		addons.ApplyCustomAddons(cluster, logger)
