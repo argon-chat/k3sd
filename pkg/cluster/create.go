@@ -28,14 +28,11 @@ import (
 //	Updated list of clusters
 func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []string) []types.Cluster {
 	for ci, cluster := range clusters {
-		err := db.InsertCluster(&cluster)
-		if err != nil {
-			logger.LogErr("error inserting cluster %s: %v", cluster.Address, err)
-		}
 		client, err := clusterutils.SSHConnect(cluster.User, cluster.Password, cluster.Address)
 		if err != nil {
 			logger.LogErr("error connecting to cluster %s: %v", cluster.Address, err)
 		}
+
 		defer closeSSHClient(client)
 
 		if err := handleMasterNode(&clusters[ci], client, logger, additional); err != nil {
@@ -52,7 +49,11 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 	}
 
 	for _, cluster := range clusters {
-		applyOptionalComponents(&cluster, logger)
+		version, err := db.InsertCluster(&cluster)
+		if err != nil {
+			logger.LogErr("error inserting cluster %s: %v", cluster.Address, err)
+		}
+		applyOptionalComponents(&cluster, version, logger)
 	}
 
 	for _, cluster := range addons.LinkChannel {
@@ -104,13 +105,24 @@ func labelMasterNode(cluster *types.Cluster, kubeconfigPath string, logger *util
 	_ = clusterutils.LabelNode(kubeconfigPath, cluster.NodeName, cluster.GetLabels(), logger)
 }
 
-func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
+func applyOptionalComponents(cluster *types.Cluster, version int, logger *utils.Logger) {
+	oldVersion, err := db.GetClusterVersion(cluster, version)
+	if err != nil {
+		logger.LogErr("error getting old cluster version for %s: %v", cluster.Address, err)
+		return
+	}
 	for name, migration := range addons.AddonRegistry {
 		addon, ok := cluster.Addons[name]
-		if ok && addon.Enabled {
-			migration.Up(cluster, logger)
+
+		if oldVersion == nil {
+			if ok && addon.Enabled {
+				migration.Up(cluster, logger)
+			} else {
+				migration.Down(cluster, logger)
+			}
 		} else {
-			migration.Down(cluster, logger)
+			_, _ = oldVersion.Addons[name]
+			// TODO
 		}
 	}
 
