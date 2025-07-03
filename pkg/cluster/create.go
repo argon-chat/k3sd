@@ -139,18 +139,18 @@ func applyOptionalComponents(cluster *types.Cluster, version int, logger *utils.
 		}
 	}
 
-	hasEnabled := false
-	hasDisabled := false
-	for _, custom := range cluster.CustomAddons {
-		hasEnabled = hasEnabled || (custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
-		hasDisabled = hasDisabled || (!custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
-	}
-	if hasEnabled {
-		addons.ApplyCustomAddons(cluster, logger)
-	}
-	if hasDisabled {
-		addons.DeleteCustomAddons(cluster, logger)
-	}
+	//hasEnabled := false
+	//hasDisabled := false
+	//for _, custom := range cluster.CustomAddons {
+	//	hasEnabled = hasEnabled || (custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
+	//	hasDisabled = hasDisabled || (!custom.Enabled && (custom.Manifest != nil || custom.Helm != nil))
+	//}
+	//if hasEnabled {
+	addons.ApplyCustomAddons(cluster, logger)
+	//}
+	//if hasDisabled {
+	addons.DeleteCustomAddons(cluster, logger)
+	//}
 }
 
 func setupWorkerNodes(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger) error {
