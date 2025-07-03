@@ -2,15 +2,13 @@ package cluster
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
 	"github.com/argon-chat/k3sd/pkg/addons"
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
 	"github.com/argon-chat/k3sd/pkg/db"
 	k8s "github.com/argon-chat/k3sd/pkg/k8s"
 	"github.com/argon-chat/k3sd/pkg/types"
 	"github.com/argon-chat/k3sd/pkg/utils"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -56,7 +54,6 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 		applyOptionalComponents(&cluster, logger)
 	}
 
-	time.Sleep(1 * time.Minute)
 	for _, cluster := range addons.LinkChannel {
 		addons.LinkClusters(cluster, &clusters, logger)
 	}
