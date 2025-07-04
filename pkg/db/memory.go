@@ -10,8 +10,20 @@ import (
 	"github.com/argon-chat/k3sd/pkg/types"
 )
 
+// DbCtx is the global GORM database context for k3sd.
 var DbCtx *gorm.DB
 
+// OpenGormDB opens a GORM database connection to the specified path.
+//
+// If the path is empty, it uses the default path from GetDBPath().
+// The function also auto-migrates the ClusterRecord schema.
+//
+// Parameters:
+//   - path: Path to the SQLite database file.
+//
+// Returns:
+//   - *gorm.DB: The opened GORM database instance.
+//   - error: Error if opening or migrating fails.
 func OpenGormDB(path string) (*gorm.DB, error) {
 	if path == "" {
 		path = GetDBPath()
@@ -27,6 +39,14 @@ func OpenGormDB(path string) (*gorm.DB, error) {
 	return db, nil
 }
 
+// InsertCluster inserts a new cluster record into the database, incrementing the version.
+//
+// Parameters:
+//   - cluster: Pointer to the Cluster object to insert.
+//
+// Returns:
+//   - int: The previous maximum version for the cluster.
+//   - error: Error if marshalling or database insertion fails.
 func InsertCluster(cluster *types.Cluster) (int, error) {
 	var maxVersion int
 	DbCtx.Model(&ClusterRecord{}).
@@ -47,6 +67,15 @@ func InsertCluster(cluster *types.Cluster) (int, error) {
 	return maxVersion, DbCtx.Create(rec).Error
 }
 
+// GetClusterVersion retrieves a specific version of a cluster from the database.
+//
+// Parameters:
+//   - cluster: Pointer to the Cluster object (address and node name used for lookup).
+//   - version: The version number to retrieve.
+//
+// Returns:
+//   - *types.Cluster: The cluster object for the specified version, or nil if not found.
+//   - error: Error if retrieval or unmarshalling fails.
 func GetClusterVersion(cluster *types.Cluster, version int) (*types.Cluster, error) {
 	if version < 1 {
 		return nil, nil
