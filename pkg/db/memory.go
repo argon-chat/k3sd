@@ -99,6 +99,14 @@ func DeleteClusterRecords(cluster *types.Cluster) error {
 	return DbCtx.Where("address = ? AND node_name = ?", cluster.Address, cluster.NodeName).Delete(&ClusterRecord{}).Error
 }
 
+// ClusterRecord represents a versioned cluster record stored in the database.
+//
+// Fields:
+//   - ID: Primary key for the record.
+//   - Address: Cluster address (indexed).
+//   - NodeName: Node name (indexed).
+//   - Version: Version number (indexed).
+//   - Cluster: JSON-encoded cluster data.
 type ClusterRecord struct {
 	ID       uint   `gorm:"primaryKey" json:"id"`
 	Address  string `gorm:"index:idx_address" json:"address"`
