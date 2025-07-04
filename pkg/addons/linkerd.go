@@ -216,6 +216,10 @@ func UnlinkLinkerdGateway(cluster *types.Cluster, gatewayClusterName string, log
 	clusterutils.PipeAndDelete(unlinkCmd, kubeconfig, logger)
 }
 
+// LinkerdGateway represents a Linkerd multicluster gateway in another cluster.
+//
+// Fields:
+//   - ClusterName: Name of the remote cluster with the gateway.
 type LinkerdGateway struct {
 	ClusterName string `json:"clusterName"`
 }
