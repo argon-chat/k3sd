@@ -7,10 +7,9 @@ import (
 	"github.com/argon-chat/k3sd/pkg/addons"
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
 	"github.com/argon-chat/k3sd/pkg/db"
-	k8s "github.com/argon-chat/k3sd/pkg/k8s"
+	"github.com/argon-chat/k3sd/pkg/k8s"
 	"github.com/argon-chat/k3sd/pkg/types"
 	"github.com/argon-chat/k3sd/pkg/utils"
-
 	"golang.org/x/crypto/ssh"
 )
 
