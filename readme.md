@@ -12,14 +12,15 @@ K3SD is a modern, config-driven tool for creating, managing, and uninstalling K3
 4. [Configuration](#configuration)
 5. [TUI Config Generator](#tui-config-generator)
 6. [Usage](#usage)
-7. [Addon System](#addon-system)
-8. [Custom Addons](#custom-addons)
-9. [Uninstalling Clusters](#uninstalling-clusters)
-10. [Build from Source](#build-from-source)
-11. [Project Roadmap](#project-roadmap)
-12. [Contributing](#contributing)
-13. [Extending the TUI: Adding New Forms and Inputs](#extending-the-tui-adding-new-forms-and-inputs)
-14. [Linkerd Multicluster Linking](#linkerd-multicluster-linking)
+7. [Command-line Options](#command-line-options)
+8. [Addon System](#addon-system)
+9. [Addon Migration and Idempotency](#addon-migration-and-idempotency)
+10. [Linkerd Multicluster Linking](#linkerd-multicluster-linking)
+11. [Database and Versioning](#database-and-versioning)
+12. [Architecture](#architecture)
+13. [Project Roadmap](#project-roadmap)
+14. [Contributing](#contributing)
+15. [Extending the TUI: Adding New Forms and Inputs](#extending-the-tui-adding-new-forms-and-inputs)
 
 ---
 
@@ -169,57 +170,82 @@ All addon/component selection is now done via the config file, not CLI flags.
 
 ## Addon System
 
-All built-in addons are enabled/configured via the `addons` map in your cluster config. Supported built-in addons:
+K3SD supports two types of addons:
+- **Built-in addons**: Managed by the migration registry with dedicated Up/Down logic. Examples: `cert-manager`, `traefik`, `prometheus`, `gitea`, `cluster-issuer`, `linkerd`, `linkerd-mc`.
+- **Custom addons**: User-defined Helm charts or manifests, managed via the `customAddons` map in your config. These use the same migration logic as built-ins.
 
-- `cert-manager`
-- `traefik`
-- `prometheus`
-- `gitea`
-- `gitea-ingress`
-- `cluster-issuer`
-- `linkerd`
-- `linkerd-mc`
+> **Note:** `gitea-ingress` is not a standalone built-in addon. It is managed as part of the Gitea addon logic and is typically configured as a manifest/ingress resource.
 
-Each addon can be enabled/disabled and provided with variable substitutions via the `subs` map. See the config example above.
+All addons are enabled/disabled via your config file. The migration logic ensures only necessary actions are taken when the cluster config changes, and all install/uninstall flows are robust and idempotent.
 
-## Custom Addons
+## Addon Migration and Idempotency
 
-You can install any Helm chart or manifest by adding entries to the `customAddons` map in your config. Example:
+K3SD uses an enum-based migration status:
+- `AddonApply`: Install or upgrade the addon.
+- `AddonDelete`: Uninstall the addon.
+- `AddonNoop`: No action needed (state unchanged).
+
+The function `ComputeAddonMigrationStatus` determines the correct action for each addon based on the current and previous cluster state. This ensures safe, repeatable operations and supports upgrades, rollbacks, and config diffs.
+
+### Adding a New Built-in Addon
+1. Implement `Up` and `Down` functions in `pkg/addons/youraddon.go`.
+2. Register your addon in `pkg/addons/addonRegistry.go`.
+3. Add config keys and substitutions as needed.
+
+### Adding a Custom Addon
+Add a new entry to the `customAddons` map in your config file, specifying either a Helm chart or manifest (or both). No code changes are required for most custom addons. Both Helm and manifest custom addons are supported and can be enabled/disabled independently.
+
+---
+
+## Linkerd Multicluster Linking
+
+K3SD now supports robust, idempotent Linkerd multicluster linking. If you enable both `linkerd` and `linkerd-mc` addons and specify a `linksTo` array in your cluster config, K3SD will automatically link your clusters using the correct kubeconfigs and Linkerd CLI commands.
+
+- The system checks for existing links and unlinks as needed.
+- Linking/unlinking is idempotent and robust against config changes.
+- Handles error cases and uninstall order correctly.
+
+**Example cluster config:**
 
 ```json
-"customAddons": {
-  "myaddon": {
-    "enabled": true,
-    "helm": {
-      "chart": "mychart",
-      "repo": { "name": "myrepo", "url": "https://charts.example.com" },
-      "version": "1.2.3",
-      "valuesFile": "./yamls/myaddon-values.yaml",
-      "namespace": "default"
-    },
-    "manifest": {
-      "path": "./yamls/myaddon.yaml",
-      "subs": { "KEY": "value" }
-    }
-  }
+{
+  "context": "cluster-1",
+  "nodeName": "cluster-1-master",
+  ...
+  "addons": {
+    "linkerd": { "enabled": true },
+    "linkerd-mc": { "enabled": true }
+  },
+  "linksTo": ["cluster-2", "cluster-3"]
 }
 ```
 
-## Uninstalling Clusters
+> **Note:** The `linksTo` field in your config should contain the context names of the clusters you wish to link, not their IP addresses.
 
-To uninstall all clusters defined in your config:
+---
 
-```bash
-k3sd --config-path=/path/to/clusters.json --uninstall
-```
+## Database and Versioning
 
-## Build from Source
+K3SD stores cluster state and version history in a local SQLite database (via GORM). This enables:
+- Safe upgrades and rollbacks
+- Accurate migration logic for addons
+- Tracking of cluster changes over time
 
-```bash
-git clone https://github.com/argon-chat/k3sd.git
-cd k3sd
-go build -ldflags "-s -w -X 'github.com/argon-chat/k3sd/utils.Version=<version>'" -o k3sd ./cli/main.go
-```
+---
+
+## Architecture
+
+K3SD is organized into several key packages:
+
+- **pkg/cluster**: Handles cluster creation, worker join, uninstall, and main orchestration logic.
+- **pkg/addons**: Built-in and custom addon management, including migration logic (Up/Down), registry, and linking (Linkerd).
+- **pkg/clusterutils**: Utilities for YAML/Helm apply/delete, SSH, manifest handling, and migration status computation.
+- **pkg/types**: All config and runtime types (Cluster, AddonConfig, CustomAddonConfig, etc).
+- **pkg/db**: Cluster state/versioning with SQLite (via GORM).
+- **pkg/utils**: Logging, CLI flags, version, and helpers.
+- **pkg/k8s**: Kubeconfig and Kubernetes-specific helpers.
+
+---
 
 ## Project Roadmap
 
@@ -316,33 +342,5 @@ The TUI is designed to be modular and easily extensible. To add a new input fiel
 - No need to modify core logic—just add to arrays and call the generic builder.
 
 This approach keeps the code DRY, modular, and easy to maintain. For more advanced flows (multi-step forms, validation, etc.), follow the same pattern: define your fields, use the generic builder, and handle the result in the main flow.
-
----
-
-## Linkerd Multicluster Linking
-
-K3SD now supports automated Linkerd multicluster linking. If you enable both `linkerd` and `linkerd-mc` addons and specify a `linksTo` array in your cluster config, K3SD will automatically link your clusters using the correct kubeconfigs and Linkerd CLI commands.
-
-**Example cluster config:**
-
-```json
-{
-  "context": "cluster-1",
-  "nodeName": "cluster-1-master",
-  ...
-  "addons": {
-    "linkerd": { "enabled": true },
-    "linkerd-mc": { "enabled": true }
-  },
-  "linksTo": ["cluster-2-ip-address", "cluster-3-ip-address"]
-}
-```
-
-**How it works:**
-- For each entry in `linksTo`, K3SD runs:
-  ```
-  linkerd multicluster link --set "enableHeadlessServices=true" --log-level="debug" --cluster-name=<context> --api-server-address=https://<cluster>:6443 | kubectl apply -f -
-  ```
-- This enables seamless multicluster service mesh federation with Linkerd.
 
 ---
