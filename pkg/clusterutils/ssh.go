@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/argon-chat/k3sd/pkg/utils"
-
 	"golang.org/x/crypto/ssh"
 )
 
