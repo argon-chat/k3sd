@@ -9,6 +9,13 @@ import (
 
 const defaultDBName = "k3sd.db"
 
+// GetDBPath returns the path to the k3sd database file.
+//
+// If the path is not set in utils.DBPath, it defaults to ~/.k3sd/k3sd.db.
+// The function ensures the directory and file exist, creating them if necessary.
+//
+// Returns:
+//   - string: The absolute path to the database file.
 func GetDBPath() string {
 	dbPath := utils.DBPath
 	if dbPath == "" {
