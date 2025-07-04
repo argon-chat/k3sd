@@ -8,10 +8,22 @@ import (
 
 	"github.com/argon-chat/k3sd/pkg/clusterutils"
 	"github.com/argon-chat/k3sd/pkg/types"
-	utils "github.com/argon-chat/k3sd/pkg/utils"
+	"github.com/argon-chat/k3sd/pkg/utils"
 	"golang.org/x/crypto/ssh"
 )
 
+// SaveKubeConfig retrieves the kubeconfig from a remote cluster node and saves it locally.
+//
+// Parameters:
+//
+//	client: SSH client connected to the node.
+//	cluster: Cluster information.
+//	nodeName: Name of the node.
+//	logger: Logger for output.
+//
+// This function fetches the kubeconfig file from the specified cluster node using SSH,
+// patches the address if needed, writes it to a local file, and optionally renames the
+// kubeconfig context if the cluster specifies a custom context name.
 func SaveKubeConfig(client *ssh.Client, cluster types.Cluster, nodeName string, logger *utils.Logger) {
 	kubeConfig, err := readRemoteKubeConfig(client, cluster.Address, logger)
 	if err != nil {
@@ -70,6 +82,14 @@ func createFileWithErr(filePath, content string) error {
 	return nil
 }
 
+// LogFiles logs the contents of all kubeconfig files for the current logger session.
+//
+// Parameters:
+//
+//	logger: Logger for output.
+//
+// This function reads all files in the kubeconfigs directory for the current logger session
+// and logs their contents using the provided logger.
 func LogFiles(logger *utils.Logger) {
 	dir := path.Join("./kubeconfigs", logger.Id)
 	files, err := os.ReadDir(dir)
@@ -95,13 +115,16 @@ func LogFiles(logger *utils.Logger) {
 //
 // Parameters:
 //
-//	cluster: The cluster containing the worker.
+//	cluster: The cluster containing the worker node.
 //	worker: The worker node to label.
 //	logger: Logger for output.
 //
 // Returns:
 //
-//	Error if labeling fails.
+//	error: Error if labeling fails.
+//
+// This function builds the kubeconfig path for the given cluster and worker, then calls
+// the clusterutils.LabelNode function to apply the labels using kubectl.
 func LabelWorkerNode(cluster *types.Cluster, worker *types.Worker, logger *utils.Logger) error {
 	kubeconfigPath := path.Join("./kubeconfigs", fmt.Sprintf("%s/%s.yaml", logger.Id, cluster.NodeName))
 	return clusterutils.LabelNode(kubeconfigPath, worker.NodeName, worker.GetLabels(), logger)
