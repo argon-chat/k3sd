@@ -6,20 +6,7 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-func init() {
-	RegisterAddonConfigBuilder("cluster-issuer", AddonConfigBuilderFunc(func(domain string, subs map[string]string) map[string]interface{} {
-		if subs == nil {
-			subs = map[string]string{}
-		}
-		subs["${DOMAIN}"] = domain
-		return map[string]interface{}{
-			"enabled": true,
-			"subs":    subs,
-		}
-	}))
-}
-
-// ApplyClusterIssuerAddon applies the ClusterIssuer YAML to the cluster if enabled.
+// ApplyClusterIssuerAddon installs and configures the ClusterIssuer addon on the cluster if enabled.
 //
 // Parameters:
 //
@@ -41,4 +28,23 @@ func applyClusterIssuer(kubeconfigPath string, logger *utils.Logger, addon *type
 		manifestPath = clusterutils.ResolveYamlPath("clusterissuer.yaml")
 	}
 	clusterutils.ApplyComponentYAML("clusterissuer", kubeconfigPath, manifestPath, logger, substitutions)
+}
+
+// DeleteClusterIssuerAddon uninstalls the ClusterIssuer addon from the cluster.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeleteClusterIssuerAddon(cluster *types.Cluster, logger *utils.Logger) {
+	addon, ok := cluster.Addons["cluster-issuer"]
+	if !ok {
+		return
+	}
+	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("clusterissuer.yaml")
+	}
+	clusterutils.DeleteComponentYAML("clusterissuer", kubeconfig, manifestPath, logger, addon.Subs)
 }

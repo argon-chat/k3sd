@@ -6,18 +6,6 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
-func init() {
-	RegisterAddonConfigBuilder("gitea", AddonConfigBuilderFunc(func(domain string, subs map[string]string) map[string]interface{} {
-		if subs == nil {
-			subs = map[string]string{}
-		}
-		return map[string]interface{}{
-			"enabled": true,
-			"subs":    subs,
-		}
-	}))
-}
-
 // ApplyGiteaAddon installs and configures the Gitea addon on the cluster if enabled.
 //
 // Parameters:
@@ -71,4 +59,30 @@ func applyGiteaIngress(clusterObj *types.Cluster, kubeconfigPath string, logger 
 		manifestPath = clusterutils.ResolveYamlPath("gitea.ingress.yaml")
 	}
 	clusterutils.ApplyComponentYAML("gitea-ingress", kubeconfigPath, manifestPath, logger, substitutions)
+}
+
+// DeleteGiteaAddon uninstalls the Gitea addon and its ingress from the cluster.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeleteGiteaAddon(cluster *types.Cluster, logger *utils.Logger) {
+	addon, ok := cluster.Addons["gitea"]
+	if !ok {
+		return
+	}
+	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = clusterutils.ResolveYamlPath("gitea.yaml")
+	}
+	clusterutils.DeleteComponentYAML("gitea", kubeconfig, manifestPath, logger, addon.Subs)
+	if ingressAddon, ok := cluster.Addons["gitea-ingress"]; ok {
+		manifestPath := ingressAddon.Path
+		if manifestPath == "" {
+			manifestPath = clusterutils.ResolveYamlPath("gitea.ingress.yaml")
+		}
+		clusterutils.DeleteComponentYAML("gitea-ingress", kubeconfig, manifestPath, logger, ingressAddon.Subs)
+	}
 }

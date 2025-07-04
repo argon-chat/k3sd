@@ -34,3 +34,24 @@ func applyCertManager(kubeconfigPath string, logger *utils.Logger, addon *types.
 	clusterutils.WaitForDeploymentReady(kubeconfigPath, "cert-manager-cainjector", "cert-manager", logger)
 	clusterutils.WaitForDeploymentReady(kubeconfigPath, "cert-manager-webhook", "cert-manager", logger)
 }
+
+// DeleteCertManagerAddon uninstalls the cert-manager addon and its CRDs from the cluster.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeleteCertManagerAddon(cluster *types.Cluster, logger *utils.Logger) {
+	addon, ok := cluster.Addons["cert-manager"]
+	if !ok {
+		return
+	}
+	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+	manifestPath := addon.Path
+	if manifestPath == "" {
+		manifestPath = "https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml"
+	}
+	clusterutils.DeleteComponentYAML("cert-manager", kubeconfig, manifestPath, logger, addon.Subs)
+	crdsPath := "https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.crds.yaml"
+	clusterutils.DeleteComponentYAML("cert-manager CRDs", kubeconfig, crdsPath, logger, nil)
+}

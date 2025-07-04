@@ -41,3 +41,22 @@ func applyPrometheus(kubeconfigPath string, logger *utils.Logger, addon *types.A
 		logger.LogErr("failed to install Prometheus Helm chart: %v", err)
 	}
 }
+
+// DeletePrometheusAddon uninstalls the Prometheus stack from the cluster by uninstalling the Helm release.
+//
+// Parameters:
+//
+//	cluster: The cluster to uninstall the addon from.
+//	logger: Logger for output.
+func DeletePrometheusAddon(cluster *types.Cluster, logger *utils.Logger) {
+	_, ok := cluster.Addons["prometheus"]
+	if !ok {
+		return
+	}
+	kubeconfig := clusterutils.KubeConfigPath(cluster, logger)
+	releaseName := "kube-prom-stack"
+	namespace := "monitoring"
+	if err := clusterutils.UninstallHelmRelease(kubeconfig, releaseName, namespace, logger); err != nil {
+		logger.LogErr("failed to uninstall Prometheus Helm release: %v", err)
+	}
+}

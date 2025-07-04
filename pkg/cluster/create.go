@@ -25,24 +25,21 @@ import (
 //
 // Returns:
 //
-//	Updated list of clusters and error if any step fails.
-func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []string) ([]types.Cluster, error) {
+//	Updated list of clusters
+func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []string) []types.Cluster {
 	for ci, cluster := range clusters {
-		err := db.InsertCluster(&cluster)
-		if err != nil {
-			return nil, fmt.Errorf("error inserting cluster %s: %v", cluster.Address, err)
-		}
 		client, err := clusterutils.SSHConnect(cluster.User, cluster.Password, cluster.Address)
 		if err != nil {
-			return nil, err
+			logger.LogErr("error connecting to cluster %s: %v", cluster.Address, err)
 		}
+
 		defer closeSSHClient(client)
 
 		if err := handleMasterNode(&clusters[ci], client, logger, additional); err != nil {
-			return nil, err
+			logger.LogErr("error handling master node %s: %v", cluster.Address, err)
 		}
 		if err := setupWorkerNodes(&clusters[ci], client, logger); err != nil {
-			return nil, err
+			logger.LogErr("error setting up worker nodes: %v", err)
 		}
 		linkerdMC, okMC := cluster.Addons["linkerd-mc"]
 		if okMC && linkerdMC.Enabled {
@@ -50,7 +47,19 @@ func CreateCluster(clusters []types.Cluster, logger *utils.Logger, additional []
 		}
 		k8s.LogFiles(logger)
 	}
-	return clusters, nil
+
+	for _, cluster := range clusters {
+		version, err := db.InsertCluster(&cluster)
+		if err != nil {
+			logger.LogErr("error inserting cluster %s: %v", cluster.Address, err)
+		}
+		applyOptionalComponents(&cluster, version, logger)
+	}
+
+	for _, cluster := range addons.LinkChannel {
+		addons.LinkClusters(cluster, &clusters, logger)
+	}
+	return clusters
 }
 
 func closeSSHClient(client *ssh.Client) {
@@ -58,9 +67,6 @@ func closeSSHClient(client *ssh.Client) {
 }
 
 func handleMasterNode(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
-	if cluster.Done {
-		return nil
-	}
 	return setupMasterNode(cluster, client, logger, additional)
 }
 
@@ -70,7 +76,6 @@ func setupMasterNode(cluster *types.Cluster, client *ssh.Client, logger *utils.L
 	}
 	kubeconfigPath := buildKubeconfigPath(logger.Id, cluster.NodeName)
 	labelMasterNode(cluster, kubeconfigPath, logger)
-	applyOptionalComponents(cluster, logger)
 	return nil
 }
 
@@ -79,6 +84,9 @@ func buildKubeconfigPath(loggerId, nodeName string) string {
 }
 
 func runBaseClusterSetup(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger, additional []string) error {
+	if cluster.Done {
+		return nil
+	}
 	baseCmds := append(baseClusterCommands(*cluster), additional...)
 	logger.Log("Connecting to cluster: %s", cluster.Address)
 	if err := clusterutils.ExecuteCommands(client, baseCmds, cluster.Password, logger); err != nil {
@@ -97,18 +105,33 @@ func labelMasterNode(cluster *types.Cluster, kubeconfigPath string, logger *util
 	_ = clusterutils.LabelNode(kubeconfigPath, cluster.NodeName, cluster.GetLabels(), logger)
 }
 
-func applyOptionalComponents(cluster *types.Cluster, logger *utils.Logger) {
-	for i := range addons.AddonRegistry {
-		addons.AddonRegistry[i](cluster, logger)
+func applyOptionalComponents(cluster *types.Cluster, version int, logger *utils.Logger) {
+	oldVersion, err := db.GetClusterVersion(cluster, version)
+	if err != nil {
+		logger.LogErr("error getting old cluster version for %s: %v", cluster.Address, err)
+		return
 	}
-	addons.ApplyCustomAddons(cluster, logger)
+	for name, migration := range addons.AddonRegistry {
+		migrationStatus := clusterutils.ComputeAddonMigrationStatus(name, cluster, oldVersion, false)
+
+		switch migrationStatus {
+		case clusterutils.AddonApply:
+			logger.Log("Applying addon %s for cluster %s", name, cluster.Address)
+			migration.Up(cluster, logger)
+			break
+		case clusterutils.AddonDelete:
+			logger.Log("Deleting addon %s for cluster %s", name, cluster.Address)
+			migration.Down(cluster, logger)
+			break
+		case clusterutils.AddonNoop:
+			break
+		}
+	}
+	addons.ApplyCustomAddons(cluster, logger, oldVersion)
 }
 
 func setupWorkerNodes(cluster *types.Cluster, client *ssh.Client, logger *utils.Logger) error {
 	return clusterutils.ForEachWorker(cluster.Workers, func(worker *types.Worker) error {
-		if worker.Done {
-			return nil
-		}
 		return joinAndLabelWorker(cluster, worker, client, logger)
 	})
 }
@@ -136,6 +159,9 @@ func getK3sToken(client *ssh.Client, cluster *types.Cluster, logger *utils.Logge
 }
 
 func joinWorker(cluster *types.Cluster, worker *types.Worker, client *ssh.Client, logger *utils.Logger, token string) error {
+	if worker.Done {
+		return nil
+	}
 	if cluster.PrivateNet {
 		return joinWorkerPrivateNet(cluster, worker, client, logger, token)
 	}
