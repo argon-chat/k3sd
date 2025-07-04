@@ -4,11 +4,15 @@ import (
 	"github.com/argon-chat/k3sd/pkg/types"
 )
 
+// AddonMigrationStatus represents the migration status of an addon (noop, apply, delete).
 type AddonMigrationStatus int
 
 const (
+	// AddonNoop indicates no migration action is needed for the addon.
 	AddonNoop AddonMigrationStatus = iota
+	// AddonApply indicates the addon should be applied (installed or upgraded).
 	AddonApply
+	// AddonDelete indicates the addon should be deleted (uninstalled).
 	AddonDelete
 )
 
