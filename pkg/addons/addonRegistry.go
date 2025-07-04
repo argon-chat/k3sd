@@ -5,6 +5,11 @@ import (
 	"github.com/argon-chat/k3sd/pkg/utils"
 )
 
+// AddonMigration defines the migration logic (Up/Down) for an addon.
+//
+// Fields:
+//   - Up: Function to apply (install/upgrade) the addon.
+//   - Down: Function to delete (uninstall) the addon.
 type AddonMigration struct {
 	Up   func(*types.Cluster, *utils.Logger)
 	Down func(*types.Cluster, *utils.Logger)
